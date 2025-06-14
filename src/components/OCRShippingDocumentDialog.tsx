@@ -43,7 +43,130 @@ const OCRShippingDocumentDialog: React.FC<OCRShippingDocumentDialogProps> = ({ o
     const lines = text.split('\n').filter(line => line.trim().length > 0);
     const items: ShippingItem[] = [];
     
-    // נחפש דפוסים של פריטים עם כמויות
+    console.log('OCR Text Lines:', lines);
+    
+    // תבניות מסודרות לזיהוי ברקודים ושמות מוצרים
+    const structuredPatterns = [
+      // תבנית 1: ברקוד בשורה נפרדת ואחריו שם המוצר וכמות
+      {
+        barcodePattern: /^[0-9]{8,13}$/, // ברקוד סטנדרטי
+        nameQuantityPattern: /(.+?)\s+(?:כמות|qty|x)\s*:?\s*(\d+)/i
+      },
+      // תבנית 2: שם מוצר ברקוד וכמות באותה שורה
+      {
+        combinedPattern: /(.+?)\s+([0-9]{8,13})\s+(?:כמות|qty|x)\s*:?\s*(\d+)/i
+      },
+      // תבנית 3: שורות עם פורמט טבלה - שם | ברקוד | כמות
+      {
+        tablePattern: /(.+?)\s*\|\s*([0-9]{8,13})\s*\|\s*(\d+)/
+      },
+      // תבנית 4: ברקוד מתחיל ב-SKU או דומה
+      {
+        skuPattern: /(?:SKU|sku|קוד)\s*:?\s*([0-9A-Za-z-_]{6,})\s+(.+?)\s+(?:כמות|qty|x)\s*:?\s*(\d+)/i
+      }
+    ];
+
+    // נעבור על השורות ונחפש תבניות מסודרות
+    for (let i = 0; i < lines.length; i++) {
+      const currentLine = lines[i].trim();
+      const nextLine = i + 1 < lines.length ? lines[i + 1].trim() : '';
+      
+      // בדיקה אם השורה הנוכחית היא ברקוד
+      if (structuredPatterns[0].barcodePattern.test(currentLine)) {
+        const barcode = currentLine;
+        
+        // נחפש בשורה הבאה שם מוצר וכמות
+        const nameQuantityMatch = nextLine.match(structuredPatterns[0].nameQuantityPattern);
+        if (nameQuantityMatch) {
+          const name = nameQuantityMatch[1].trim();
+          const quantity = parseInt(nameQuantityMatch[2]);
+          
+          if (name.length > 2 && quantity > 0) {
+            items.push({
+              name: name,
+              quantity: quantity,
+              status: 'match',
+              barcode: barcode
+            });
+            console.log(`Found structured item: ${name}, Barcode: ${barcode}, Quantity: ${quantity}`);
+            i++; // דלג על השורה הבאה כי כבר עיבדנו אותה
+            continue;
+          }
+        }
+      }
+      
+      // בדיקה לתבנית משולבת (שם + ברקוד + כמות באותה שורה)
+      const combinedMatch = currentLine.match(structuredPatterns[1].combinedPattern);
+      if (combinedMatch) {
+        const name = combinedMatch[1].trim();
+        const barcode = combinedMatch[2];
+        const quantity = parseInt(combinedMatch[3]);
+        
+        if (name.length > 2 && quantity > 0) {
+          items.push({
+            name: name,
+            quantity: quantity,
+            status: 'match',
+            barcode: barcode
+          });
+          console.log(`Found combined item: ${name}, Barcode: ${barcode}, Quantity: ${quantity}`);
+          continue;
+        }
+      }
+      
+      // בדיקה לתבנית טבלה
+      const tableMatch = currentLine.match(structuredPatterns[2].tablePattern);
+      if (tableMatch) {
+        const name = tableMatch[1].trim();
+        const barcode = tableMatch[2];
+        const quantity = parseInt(tableMatch[3]);
+        
+        if (name.length > 2 && quantity > 0) {
+          items.push({
+            name: name,
+            quantity: quantity,
+            status: 'match',
+            barcode: barcode
+          });
+          console.log(`Found table item: ${name}, Barcode: ${barcode}, Quantity: ${quantity}`);
+          continue;
+        }
+      }
+      
+      // בדיקה לתבנית SKU
+      const skuMatch = currentLine.match(structuredPatterns[3].skuPattern);
+      if (skuMatch) {
+        const sku = skuMatch[1];
+        const name = skuMatch[2].trim();
+        const quantity = parseInt(skuMatch[3]);
+        
+        if (name.length > 2 && quantity > 0) {
+          items.push({
+            name: name,
+            quantity: quantity,
+            status: 'match',
+            barcode: sku
+          });
+          console.log(`Found SKU item: ${name}, SKU: ${sku}, Quantity: ${quantity}`);
+          continue;
+        }
+      }
+    }
+
+    // אם לא מצאנו פריטים עם התבניות המסודרות, ננסה את השיטה הישנה כגיבוי
+    if (items.length === 0) {
+      console.log('No structured patterns found, falling back to legacy parsing');
+      return parseLegacyFormat(lines);
+    }
+
+    console.log(`Found ${items.length} structured items`);
+    return items;
+  };
+
+  const parseLegacyFormat = (lines: string[]): ShippingItem[] => {
+    const items: ShippingItem[] = [];
+    
+    // השיטה הישנה לגיבוי
     const itemPatterns = [
       /(.+?)\s+(\d+)\s*יח[׳']?/g,
       /(.+?)\s+כמות[:\s]*(\d+)/g,
@@ -67,12 +190,11 @@ const OCRShippingDocumentDialog: React.FC<OCRShippingDocumentDialogProps> = ({ o
           }
 
           if (name && quantity > 0 && name.length > 2) {
-            // נבדוק אם זה לא מספר או תאריך
             if (!/^\d+$/.test(name) && !/\d{2}\/\d{2}\/\d{4}/.test(name)) {
               items.push({
                 name: name,
                 quantity: quantity,
-                status: 'match' // נקבע בהמשך בהשוואה
+                status: 'match'
               });
             }
           }
@@ -97,10 +219,22 @@ const OCRShippingDocumentDialog: React.FC<OCRShippingDocumentDialogProps> = ({ o
     }
 
     return scannedItems.map(item => {
-      const inventoryItem = inventory.find(inv => 
-        inv.name.toLowerCase().includes(item.name.toLowerCase()) ||
-        item.name.toLowerCase().includes(inv.name.toLowerCase())
-      );
+      // נחפש התאמה לפי ברקוד קודם
+      let inventoryItem = null;
+      if (item.barcode) {
+        inventoryItem = inventory.find(inv => 
+          inv.barcode === item.barcode || 
+          inv.sku === item.barcode
+        );
+      }
+      
+      // אם לא מצאנו לפי ברקוד, נחפש לפי שם
+      if (!inventoryItem) {
+        inventoryItem = inventory.find(inv => 
+          inv.name.toLowerCase().includes(item.name.toLowerCase()) ||
+          item.name.toLowerCase().includes(inv.name.toLowerCase())
+        );
+      }
 
       if (inventoryItem) {
         return {
@@ -141,7 +275,7 @@ const OCRShippingDocumentDialog: React.FC<OCRShippingDocumentDialogProps> = ({ o
       if (parsedItems.length === 0) {
         toast({
           title: "לא נמצאו פריטים",
-          description: "לא הצלחנו לזהות פריטים בתעודת המשלוח. נסה תמונה בהירה יותר.",
+          description: "לא הצלחנו לזהות פריטים בתעודת המשלוח. נסה תמונה בהירה יותר או ודא שהמסמך מכיל תבנית מסודרת.",
           variant: "destructive",
         });
         return;
@@ -152,7 +286,7 @@ const OCRShippingDocumentDialog: React.FC<OCRShippingDocumentDialogProps> = ({ o
 
       toast({
         title: "הסריקה הושלמה בהצלחה!",
-        description: `זוהו ${parsedItems.length} פריטים בתעודת המשלוח`,
+        description: `זוהו ${parsedItems.length} פריטים בתעודת המשלוח בתבנית מסודרת`,
       });
 
       setOpen(false);
@@ -206,12 +340,13 @@ const OCRShippingDocumentDialog: React.FC<OCRShippingDocumentDialogProps> = ({ o
           )}
 
           <div className="text-xs text-gray-500">
-            <p>טיפים לסריקה טובה יותר:</p>
+            <p>טיפים לסריקה מסודרת יותר:</p>
             <ul className="list-disc pr-5 mt-1">
               <li>ודא שהתמונה חדה ובהירה</li>
               <li>הטקסט צריך להיות ברור וקריא</li>
               <li>נסה לצלם ישר מעל המסמך</li>
-              <li>הימנע מצללים או בהירות יתר</li>
+              <li>התבנית המועדפת: ברקוד בשורה נפרדת ואחריו שם המוצר וכמות</li>
+              <li>תבניות נתמכות: "שם מוצר כמות: X" או "שם | ברקוד | כמות"</li>
             </ul>
           </div>
 

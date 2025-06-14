@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Link } from "react-router-dom";
 import OCRShippingDocumentDialog from "@/components/OCRShippingDocumentDialog";
@@ -8,6 +7,7 @@ export interface ShippingItem {
   name: string;
   quantity: number;
   status: 'match' | 'missing' | 'extra';
+  barcode?: string; // ברקוד אופציונלי
 }
 
 const Orders = () => {

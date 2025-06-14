@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -79,6 +78,7 @@ const ShippingComparisonTable: React.FC<ShippingComparisonTableProps> = ({ items
             <TableRow>
               <TableHead className="text-right">סטטוס</TableHead>
               <TableHead className="text-right">שם המוצר</TableHead>
+              <TableHead className="text-right">ברקוד/SKU</TableHead>
               <TableHead className="text-right">כמות</TableHead>
               <TableHead className="text-right">הערות</TableHead>
             </TableRow>
@@ -91,6 +91,9 @@ const ShippingComparisonTable: React.FC<ShippingComparisonTableProps> = ({ items
                   {getStatusBadge(item.status)}
                 </TableCell>
                 <TableCell className="font-medium">{item.name}</TableCell>
+                <TableCell className="font-mono text-sm">
+                  {item.barcode || 'לא זוהה'}
+                </TableCell>
                 <TableCell>{item.quantity}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {getStatusText(item.status)}
