@@ -1,9 +1,10 @@
-
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
+import BarcodeScannerDialog from "./BarcodeScannerDialog";
+import { ScanBarcode } from "lucide-react";
 
 interface AddProductDialogProps {
   onAdd: (product: Product) => void;
@@ -19,6 +20,7 @@ export interface Product {
 
 const AddProductDialog: React.FC<AddProductDialogProps> = ({ onAdd }) => {
   const [open, setOpen] = React.useState(false);
+  const [scannerOpen, setScannerOpen] = React.useState(false);
   const [product, setProduct] = React.useState<Omit<Product, "quantity"> & { quantity: string }>({
     barcode: "",
     name: "",
@@ -32,6 +34,14 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ onAdd }) => {
       ...prev,
       [e.target.name]: e.target.value,
     }));
+  };
+
+  const handleBarcodeScan = (code: string) => {
+    setProduct(prev => ({
+      ...prev,
+      barcode: code,
+    }));
+    toast({ title: "ברקוד נסרק בהצלחה!" });
   };
 
   const handleAdd = () => {
@@ -62,7 +72,28 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ onAdd }) => {
           <DialogTitle>הוספת מוצר חדש</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
-          <Input placeholder="ברקוד" name="barcode" value={product.barcode} onChange={handleChange} />
+          <div className="flex gap-2">
+            <Input
+              placeholder="ברקוד"
+              name="barcode"
+              value={product.barcode}
+              onChange={handleChange}
+            />
+            <Button
+              variant="outline"
+              type="button"
+              className="whitespace-nowrap flex gap-1 items-center"
+              onClick={() => setScannerOpen(true)}
+            >
+              <ScanBarcode className="w-5 h-5" />
+              סרוק ברקוד
+            </Button>
+            <BarcodeScannerDialog
+              open={scannerOpen}
+              onClose={() => setScannerOpen(false)}
+              onDetected={handleBarcodeScan}
+            />
+          </div>
           <Input placeholder="שם מוצר" name="name" value={product.name} onChange={handleChange} />
           <Input placeholder="ספק" name="supplier" value={product.supplier} onChange={handleChange} />
           <Input type="number" min={0} placeholder="כמות התחלתית" name="quantity" value={product.quantity} onChange={handleChange} />
