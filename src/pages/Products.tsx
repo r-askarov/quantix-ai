@@ -67,6 +67,8 @@ const Products = () => {
 
   const handleBarcodeImport = (database: BarcodeDatabase) => {
     setBarcodeDatabase(database);
+    // שמירת המאגר ב-localStorage
+    localStorage.setItem('barcodeDatabase', JSON.stringify(database));
     console.log("Barcode database imported:", database);
   };
 

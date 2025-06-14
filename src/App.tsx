@@ -12,6 +12,7 @@ import Products from "./pages/Products";
 import Orders from "./pages/Orders";
 import Suppliers from "./pages/Suppliers";
 import Dashboard from "./pages/Dashboard";
+import BarcodeDatabase from "./pages/BarcodeDatabase";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/products" element={<Products />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/suppliers" element={<Suppliers />} />
+          <Route path="/barcode-database" element={<BarcodeDatabase />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

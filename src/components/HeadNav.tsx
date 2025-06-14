@@ -8,6 +8,7 @@ const navs = [
   { to: "/products", label: "מוצרים" },
   { to: "/orders", label: "הזמנות" },
   { to: "/suppliers", label: "ספקים" },
+  { to: "/barcode-database", label: "מאגר ברקודים" },
 ];
 
 const HeadNav = () => {
