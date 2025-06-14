@@ -38,11 +38,35 @@ const EnhancedAddProductDialog: React.FC<EnhancedAddProductDialogProps> = ({ onA
     if (!barcode.trim()) return;
     
     console.log("Searching barcode:", barcode);
-    console.log("Barcode database:", barcodeDatabase);
+    console.log("Barcode database keys:", Object.keys(barcodeDatabase));
+    console.log("Barcode database full:", barcodeDatabase);
+    console.log("Looking for barcode:", barcode, "Type:", typeof barcode);
     
-    const productInfo = barcodeDatabase[barcode];
+    // נסיון חיפוש עם הברקוד כמו שהוא
+    let productInfo = barcodeDatabase[barcode];
+    console.log("Direct search result:", productInfo);
+    
+    // אם לא נמצא, ננסה להמיר למחרוזת
+    if (!productInfo) {
+      const barcodeStr = String(barcode);
+      productInfo = barcodeDatabase[barcodeStr];
+      console.log("String search result:", productInfo);
+    }
+    
+    // אם לא נמצא, ננסה לחפש בכל המפתחות
+    if (!productInfo) {
+      console.log("Trying to find barcode in all keys...");
+      Object.keys(barcodeDatabase).forEach(key => {
+        console.log(`Key: "${key}" (type: ${typeof key}), equals barcode: ${key === barcode}, equals string: ${key === String(barcode)}`);
+        if (key === barcode || key === String(barcode)) {
+          productInfo = barcodeDatabase[key];
+          console.log("Found match with key:", key);
+        }
+      });
+    }
     
     if (productInfo) {
+      console.log("Product found:", productInfo);
       setFormData(prev => ({
         ...prev,
         name: productInfo.name,
@@ -55,6 +79,7 @@ const EnhancedAddProductDialog: React.FC<EnhancedAddProductDialogProps> = ({ onA
         description: `נמצא מוצר: ${productInfo.name}`,
       });
     } else {
+      console.log("Product not found for barcode:", barcode);
       // איפוס שדות אם לא נמצא מוצר
       setFormData(prev => ({
         ...prev,
@@ -115,6 +140,7 @@ const EnhancedAddProductDialog: React.FC<EnhancedAddProductDialogProps> = ({ onA
     
     // אם השדה הוא ברקוד, חפש במאגר
     if (field === "barcode" && typeof value === "string") {
+      console.log("Input change triggered search for:", value);
       searchBarcode(value);
     }
   };
