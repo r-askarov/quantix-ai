@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -68,13 +67,10 @@ const EnhancedAddProductDialog: React.FC<EnhancedAddProductDialogProps> = ({ onA
     if (productInfo) {
       console.log("Product found:", productInfo);
       
-      // נשתמש בשם המוצר כספק אם לא מוגדר ספק נפרד
-      const supplierFromName = productInfo.name || "";
-      
       setFormData(prev => ({
         ...prev,
         name: productInfo.name,
-        supplier: productInfo.supplier || supplierFromName,
+        supplier: productInfo.supplier || "",
         minStock: productInfo.minStock || prev.minStock,
       }));
       

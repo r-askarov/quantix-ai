@@ -70,7 +70,9 @@ const ExcelImportDialog: React.FC<ExcelImportDialogProps> = ({ onImport }) => {
                        row['קוד'] || row['code'] || row['Code'] || row['CODE'];
         const name = row['שם'] || row['שם מוצר'] || row['name'] || row['Name'] || row['NAME'] || 
                     row['product'] || row['Product'] || row['PRODUCT'];
-        const supplier = row['ספק'] || row['supplier'] || row['Supplier'] || row['SUPPLIER'];
+        // חיפוש עמודת המותג/ספק
+        const supplier = row['מותג'] || row['brand'] || row['Brand'] || row['BRAND'] ||
+                        row['ספק'] || row['supplier'] || row['Supplier'] || row['SUPPLIER'];
         const minStock = row['מלאי מינימום'] || row['min stock'] || row['Min Stock'] || row['MIN_STOCK'] ||
                         row['minimum'] || row['Minimum'];
 
@@ -144,7 +146,7 @@ const ExcelImportDialog: React.FC<ExcelImportDialogProps> = ({ onImport }) => {
             <ul className="list-disc pr-5 mt-1">
               <li><strong>ברקוד</strong> - קוד הברקוד של המוצר</li>
               <li><strong>שם מוצר</strong> - שם המוצר</li>
-              <li><strong>ספק</strong> - שם הספק (אופציונלי)</li>
+              <li><strong>מותג</strong> - שם המותג/ספק (אופציונלי)</li>
               <li><strong>מלאי מינימום</strong> - כמות מלאי מינימום (אופציונלי)</li>
             </ul>
           </div>
