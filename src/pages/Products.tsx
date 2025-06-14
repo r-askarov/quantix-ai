@@ -16,16 +16,24 @@ const initialProducts: Product[] = [
 const Products = () => {
   const [products, setProducts] = React.useState<Product[]>(initialProducts);
 
-  // בדיקה בזמן טעינה האם יש מוצרים שמגיעים למינימום - שליחת התראה
+  // בעת טעינה: לייצר התראה אחת עם רשימת מוצרים נמוכים מהמינימום
   React.useEffect(() => {
-    products.forEach((p) => {
-      if (p.quantity <= p.minStock) {
-        toast({
-          title: `המוצר '${p.name}' הגיע או עבר את מלאי המינימום!`,
-          variant: "destructive",
-        });
-      }
-    });
+    const lowStockProducts = products.filter((p) => p.quantity <= p.minStock);
+    if (lowStockProducts.length > 0) {
+      toast({
+        title: "התראת מלאי נמוך",
+        description: (
+          <ul className="list-disc pr-5">
+            {lowStockProducts.map((p) => (
+              <li key={p.barcode} className="mt-1">
+                {p.name} (כמות: <span className="font-bold">{p.quantity}</span>)
+              </li>
+            ))}
+          </ul>
+        ),
+        variant: "destructive",
+      });
+    }
   }, [products]);
 
   const handleAddProduct = (product: Product) => {
