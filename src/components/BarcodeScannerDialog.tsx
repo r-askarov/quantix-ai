@@ -9,12 +9,6 @@ interface BarcodeScannerDialogProps {
   onDetected: (code: string) => void;
 }
 
-declare global {
-  interface Window {
-    Html5Qrcode: any;
-  }
-}
-
 const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
   open,
   onClose,
@@ -22,42 +16,60 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
 }) => {
   const scannerRef = React.useRef<HTMLDivElement | null>(null);
   const [scanning, setScanning] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
   const html5QrCodeRef = React.useRef<any>(null);
 
   React.useEffect(() => {
     if (open && scannerRef.current) {
       setScanning(true);
-      import("html5-qrcode").then(({ Html5Qrcode }) => {
-        const qr = new Html5Qrcode(scannerRef.current!.id);
-        html5QrCodeRef.current = qr;
-        qr.start(
-          { facingMode: "environment" },
-          {
-            fps: 10,
-            qrbox: 250,
-            formatsToSupport: [ "EAN_13", "EAN_8", "CODE_128", "CODE_39" ],
-          },
-          (decodedText: string) => {
-            qr.stop().then(() => {
-              setScanning(false);
-              onDetected(decodedText);
-              onClose();
-            });
-          },
-          // onError:
-          () => {}
-        );
-      });
+      setError(null);
+      
+      const startScanner = async () => {
+        try {
+          const { Html5Qrcode } = await import("html5-qrcode");
+          const qr = new Html5Qrcode(scannerRef.current!.id);
+          html5QrCodeRef.current = qr;
+          
+          await qr.start(
+            { facingMode: "environment" },
+            {
+              fps: 10,
+              qrbox: { width: 200, height: 200 },
+              formatsToSupport: ["EAN_13", "EAN_8", "CODE_128", "CODE_39", "QR_CODE"],
+            },
+            (decodedText: string) => {
+              console.log("Barcode detected:", decodedText);
+              qr.stop().then(() => {
+                setScanning(false);
+                onDetected(decodedText);
+                onClose();
+              }).catch(console.error);
+            },
+            (errorMessage: string) => {
+              // Silent error handling for continuous scanning
+              console.log("Scan error:", errorMessage);
+            }
+          );
+        } catch (err) {
+          console.error("Scanner initialization error:", err);
+          setError("לא ניתן להפעיל את המצלמה. אנא בדוק הרשאות המצלמה.");
+          setScanning(false);
+        }
+      };
+
+      startScanner();
     }
+
     return () => {
       if (html5QrCodeRef.current) {
-        html5QrCodeRef.current.stop().catch(() => {});
-        html5QrCodeRef.current.clear().catch(() => {});
+        html5QrCodeRef.current.stop()
+          .then(() => html5QrCodeRef.current.clear())
+          .catch(console.error);
       }
       setScanning(false);
+      setError(null);
     };
-    // eslint-disable-next-line
-  }, [open]);
+  }, [open, onDetected, onClose]);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -71,12 +83,16 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
             id="barcode-scanner"
             className="w-full h-72 bg-black rounded flex items-center justify-center"
           >
-            {!scanning && (
+            {error ? (
+              <div className="text-red-400 text-center px-4">
+                {error}
+              </div>
+            ) : !scanning ? (
               <span className="text-white text-center">מטעין סורק...</span>
-            )}
+            ) : null}
           </div>
           <div className="mt-2 text-xs text-gray-700 text-center">
-            ודא/י שהמצלמה פונה לברקוד.
+            {error ? "נסה/י שוב או בדוק הרשאות מצלמה" : "ודא/י שהמצלמה פונה לברקוד."}
           </div>
         </div>
         <DialogFooter>
