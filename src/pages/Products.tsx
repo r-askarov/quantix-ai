@@ -2,7 +2,8 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import ProductsTable from "@/components/ProductsTable";
-import AddProductDialog, { Product } from "@/components/AddProductDialog";
+import EnhancedAddProductDialog, { Product } from "@/components/EnhancedAddProductDialog";
+import ExcelImportDialog, { BarcodeDatabase } from "@/components/ExcelImportDialog";
 import { toast } from "@/hooks/use-toast";
 
 const initialProducts: Product[] = [
@@ -15,6 +16,7 @@ const initialProducts: Product[] = [
 
 const Products = () => {
   const [products, setProducts] = React.useState<Product[]>(initialProducts);
+  const [barcodeDatabase, setBarcodeDatabase] = React.useState<BarcodeDatabase>({});
 
   // בעת טעינה: לייצר התראה אחת עם רשימת מוצרים נמוכים מהמינימום
   React.useEffect(() => {
@@ -63,6 +65,11 @@ const Products = () => {
     });
   };
 
+  const handleBarcodeImport = (database: BarcodeDatabase) => {
+    setBarcodeDatabase(database);
+    console.log("Barcode database imported:", database);
+  };
+
   return (
     <main className="min-h-screen bg-background px-8 py-8">
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -70,7 +77,10 @@ const Products = () => {
           <h1 className="text-3xl font-black text-primary mb-2">מוצרים</h1>
           <p className="text-muted-foreground">רשימת מוצרים לניהול מלאי, צפייה והוספה.</p>
         </div>
-        <AddProductDialog onAdd={handleAddProduct} />
+        <div className="flex gap-2">
+          <ExcelImportDialog onImport={handleBarcodeImport} />
+          <EnhancedAddProductDialog onAdd={handleAddProduct} barcodeDatabase={barcodeDatabase} />
+        </div>
       </div>
       <div className="mt-4">
         <ProductsTable products={products} />
