@@ -1,11 +1,10 @@
-
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScanText, Upload } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import Tesseract from "tesseract.js";
 import { ShippingItem } from "@/pages/Orders";
 
@@ -18,6 +17,7 @@ const OCRShippingDocumentDialog: React.FC<OCRShippingDocumentDialogProps> = ({ o
   const [file, setFile] = React.useState<File | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [preview, setPreview] = React.useState<string>("");
+  const { toast } = useToast();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
