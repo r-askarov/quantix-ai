@@ -18,6 +18,20 @@ const Products = () => {
   const [products, setProducts] = React.useState<Product[]>(initialProducts);
   const [barcodeDatabase, setBarcodeDatabase] = React.useState<BarcodeDatabase>({});
 
+  // טעינת מאגר ברקודים מ-localStorage בעת הטעינה הראשונה
+  React.useEffect(() => {
+    const savedDatabase = localStorage.getItem('barcodeDatabase');
+    if (savedDatabase) {
+      try {
+        const parsedDatabase = JSON.parse(savedDatabase);
+        setBarcodeDatabase(parsedDatabase);
+        console.log("Loaded barcode database from localStorage:", parsedDatabase);
+      } catch (error) {
+        console.error('Error loading barcode database from localStorage:', error);
+      }
+    }
+  }, []);
+
   // בעת טעינה: לייצר התראה אחת עם רשימת מוצרים נמוכים מהמינימום
   React.useEffect(() => {
     const lowStockProducts = products.filter((p) => p.quantity <= p.minStock);
@@ -69,7 +83,12 @@ const Products = () => {
     setBarcodeDatabase(database);
     // שמירת המאגר ב-localStorage
     localStorage.setItem('barcodeDatabase', JSON.stringify(database));
-    console.log("Barcode database imported:", database);
+    console.log("Barcode database imported and saved:", database);
+    
+    toast({
+      title: "מאגר ברקודים יובא בהצלחה!",
+      description: `יובאו ${Object.keys(database).length} מוצרים למאגר`,
+    });
   };
 
   return (
