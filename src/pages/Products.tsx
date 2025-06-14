@@ -37,7 +37,30 @@ const Products = () => {
   }, [products]);
 
   const handleAddProduct = (product: Product) => {
-    setProducts((prev) => [...prev, product]);
+    setProducts((prev) => {
+      // חיפוש מוצר קיים לפי שם
+      const existingProductIndex = prev.findIndex((p) => p.name === product.name);
+      
+      if (existingProductIndex !== -1) {
+        // אם המוצר קיים, נעדכן את הכמות
+        const updatedProducts = [...prev];
+        updatedProducts[existingProductIndex] = {
+          ...updatedProducts[existingProductIndex],
+          quantity: updatedProducts[existingProductIndex].quantity + product.quantity,
+        };
+        
+        toast({
+          title: "המוצר עודכן בהצלחה!",
+          description: `הכמות של "${product.name}" עודכנה ל-${updatedProducts[existingProductIndex].quantity}`,
+        });
+        
+        return updatedProducts;
+      } else {
+        // אם המוצר לא קיים, נוסיף אותו כמוצר חדש
+        toast({ title: "המוצר נוסף בהצלחה!" });
+        return [...prev, product];
+      }
+    });
   };
 
   return (
