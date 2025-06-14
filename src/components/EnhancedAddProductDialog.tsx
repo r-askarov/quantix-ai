@@ -33,16 +33,18 @@ const EnhancedAddProductDialog: React.FC<EnhancedAddProductDialogProps> = ({ onA
     minStock: 5,
   });
 
-  const handleBarcodeDetected = (detectedBarcode: string) => {
-    console.log("Barcode detected:", detectedBarcode);
+  // חיפוש במאגר הברקודים
+  const searchBarcode = (barcode: string) => {
+    if (!barcode.trim()) return;
     
-    // חיפוש במאגר הברקודים
-    const productInfo = barcodeDatabase[detectedBarcode];
+    console.log("Searching barcode:", barcode);
+    console.log("Barcode database:", barcodeDatabase);
+    
+    const productInfo = barcodeDatabase[barcode];
     
     if (productInfo) {
       setFormData(prev => ({
         ...prev,
-        barcode: detectedBarcode,
         name: productInfo.name,
         supplier: productInfo.supplier || prev.supplier,
         minStock: productInfo.minStock || prev.minStock,
@@ -53,17 +55,25 @@ const EnhancedAddProductDialog: React.FC<EnhancedAddProductDialogProps> = ({ onA
         description: `נמצא מוצר: ${productInfo.name}`,
       });
     } else {
+      // איפוס שדות אם לא נמצא מוצר
       setFormData(prev => ({
         ...prev,
-        barcode: detectedBarcode,
+        name: "",
+        supplier: "",
+        minStock: 5,
       }));
-      
-      toast({
-        title: "ברקוד נסרק",
-        description: "לא נמצא מוצר במאגר. אנא השלם את הפרטים ידנית.",
-        variant: "destructive",
-      });
     }
+  };
+
+  const handleBarcodeDetected = (detectedBarcode: string) => {
+    console.log("Barcode detected:", detectedBarcode);
+    
+    setFormData(prev => ({
+      ...prev,
+      barcode: detectedBarcode,
+    }));
+    
+    searchBarcode(detectedBarcode);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -102,6 +112,11 @@ const EnhancedAddProductDialog: React.FC<EnhancedAddProductDialogProps> = ({ onA
       ...prev,
       [field]: value,
     }));
+    
+    // אם השדה הוא ברקוד, חפש במאגר
+    if (field === "barcode" && typeof value === "string") {
+      searchBarcode(value);
+    }
   };
 
   return (
