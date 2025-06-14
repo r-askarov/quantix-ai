@@ -6,6 +6,7 @@ import NotificationsPanel from "@/components/NotificationsPanel";
 import { Button } from "@/components/ui/button";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import * as React from "react";
+import HeadNav from "@/components/HeadNav";
 
 const Index = () => {
   React.useEffect(() => {
@@ -15,6 +16,7 @@ const Index = () => {
 
   return (
     <main className="min-h-screen bg-background flex flex-col gap-10 px-8 py-8"  dir="rtl" lang="he">
+      <HeadNav />
       {/* Header */}
       <header className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-2 select-none">
         <h1 className="text-4xl font-black tracking-tight text-primary mb-1">Quantix – ניהול מלאי חכם</h1>
