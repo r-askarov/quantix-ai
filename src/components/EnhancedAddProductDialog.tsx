@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -36,40 +37,50 @@ const EnhancedAddProductDialog: React.FC<EnhancedAddProductDialogProps> = ({ onA
   const searchBarcode = (barcode: string) => {
     if (!barcode.trim()) return;
     
+    console.log("=== SEARCHING BARCODE ===");
     console.log("Searching barcode:", barcode);
-    console.log("Barcode database keys:", Object.keys(barcodeDatabase));
-    console.log("Barcode database full:", barcodeDatabase);
-    console.log("Looking for barcode:", barcode, "Type:", typeof barcode);
+    console.log("Barcode type:", typeof barcode);
+    console.log("Database keys count:", Object.keys(barcodeDatabase).length);
+    console.log("First 5 database keys:", Object.keys(barcodeDatabase).slice(0, 5));
     
-    // נסיון חיפוש עם הברקוד כמו שהוא
+    // נסיון חיפוש ישיר
     let productInfo = barcodeDatabase[barcode];
     console.log("Direct search result:", productInfo);
     
     // אם לא נמצא, ננסה להמיר למחרוזת
     if (!productInfo) {
-      const barcodeStr = String(barcode);
+      const barcodeStr = String(barcode).trim();
       productInfo = barcodeDatabase[barcodeStr];
       console.log("String search result:", productInfo);
     }
     
-    // אם לא נמצא, ננסה לחפש בכל המפתחות
+    // אם עדיין לא נמצא, ננסה לחפש בכל המפתחות
     if (!productInfo) {
-      console.log("Trying to find barcode in all keys...");
-      Object.keys(barcodeDatabase).forEach(key => {
-        console.log(`Key: "${key}" (type: ${typeof key}), equals barcode: ${key === barcode}, equals string: ${key === String(barcode)}`);
-        if (key === barcode || key === String(barcode)) {
-          productInfo = barcodeDatabase[key];
-          console.log("Found match with key:", key);
+      console.log("Trying to find exact match in all keys...");
+      const foundKey = Object.keys(barcodeDatabase).find(key => {
+        const keyMatch = key === barcode || key === String(barcode).trim();
+        if (keyMatch) {
+          console.log(`Found exact match: "${key}" matches "${barcode}"`);
         }
+        return keyMatch;
       });
+      
+      if (foundKey) {
+        productInfo = barcodeDatabase[foundKey];
+        console.log("Found via key search:", productInfo);
+      }
     }
     
     if (productInfo) {
-      console.log("Product found:", productInfo);
+      console.log("=== PRODUCT FOUND ===");
+      console.log("Product data:", productInfo);
+      console.log("Product name:", productInfo.name);
+      console.log("Product supplier:", productInfo.supplier);
+      console.log("Product minStock:", productInfo.minStock);
       
       setFormData(prev => ({
         ...prev,
-        name: productInfo.name,
+        name: productInfo.name || "",
         supplier: productInfo.supplier || "",
         minStock: productInfo.minStock || prev.minStock,
       }));
@@ -79,7 +90,9 @@ const EnhancedAddProductDialog: React.FC<EnhancedAddProductDialogProps> = ({ onA
         description: `נמצא מוצר: ${productInfo.name}`,
       });
     } else {
-      console.log("Product not found for barcode:", barcode);
+      console.log("=== PRODUCT NOT FOUND ===");
+      console.log("No product found for barcode:", barcode);
+      
       // איפוס שדות אם לא נמצא מוצר
       setFormData(prev => ({
         ...prev,
@@ -91,7 +104,7 @@ const EnhancedAddProductDialog: React.FC<EnhancedAddProductDialogProps> = ({ onA
   };
 
   const handleBarcodeDetected = (detectedBarcode: string) => {
-    console.log("Barcode detected:", detectedBarcode);
+    console.log("Barcode detected from scanner:", detectedBarcode);
     
     setFormData(prev => ({
       ...prev,
