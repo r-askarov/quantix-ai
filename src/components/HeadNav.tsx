@@ -1,6 +1,7 @@
 
 import * as React from "react";
 import { Link, useLocation } from "react-router-dom";
+import logo from "@/assets/logo.png";
 
 const navs = [
   { to: "/dashboard", label: "דשבורד" },
@@ -25,6 +26,9 @@ const HeadNav = () => {
             {nav.label}
           </Link>
         ))}
+      </div>
+      <div className="flex-0 ml-2">
+        <img src={logo} alt="Quantix Logo" className="h-12 w-auto object-contain" />
       </div>
     </nav>
   );
