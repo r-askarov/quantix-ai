@@ -1,17 +1,13 @@
 
 import * as React from "react";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
+import type { Product } from "./AddProductDialog";
 
-// נתוני דמו של מוצרים
-const products = [
-  { barcode: "7290001234567", name: "מברגה בוש", quantity: 13, supplier: "חשמל יצחק" },
-  { barcode: "7290009876541", name: "סרט מדידה 5 מטר", quantity: 34, supplier: "י.א. בניה" },
-  { barcode: "7290001122445", name: "פלייר מקצועי", quantity: 28, supplier: "כלי-ברזל בע\"מ" },
-  { barcode: "7290009988776", name: "מברשת צבע", quantity: 56, supplier: "ספק מבנים" },
-  { barcode: "7290008765432", name: "מסור ידני", quantity: 2, supplier: "כלי-ברזל בע\"מ" },
-];
+interface ProductsTableProps {
+  products: Product[];
+}
 
-const ProductsTable = () => {
+const ProductsTable: React.FC<ProductsTableProps> = ({ products }) => {
   return (
     <div className="overflow-x-auto rounded-md border bg-card shadow">
       <Table>
@@ -21,24 +17,31 @@ const ProductsTable = () => {
             <TableHead className="text-right">שם מוצר</TableHead>
             <TableHead className="text-right">כמות</TableHead>
             <TableHead className="text-right">ספק</TableHead>
+            <TableHead className="text-right">מלאי מינימום</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {products.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+              <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                 לא נמצאו מוצרים.
               </TableCell>
             </TableRow>
           ) : (
-            products.map((p) => (
-              <TableRow key={p.barcode}>
-                <TableCell className="font-mono">{p.barcode}</TableCell>
-                <TableCell>{p.name}</TableCell>
-                <TableCell className={p.quantity === 0 ? "text-red-600 font-bold" : ""}>{p.quantity}</TableCell>
-                <TableCell>{p.supplier}</TableCell>
-              </TableRow>
-            ))
+            products.map((p) => {
+              const isLow = p.quantity <= p.minStock;
+              return (
+                <TableRow key={p.barcode} className={isLow ? "bg-red-100/60" : ""}>
+                  <TableCell className="font-mono">{p.barcode}</TableCell>
+                  <TableCell>{p.name}</TableCell>
+                  <TableCell className={isLow ? "text-red-700 font-bold" : ""}>
+                    {p.quantity}
+                  </TableCell>
+                  <TableCell>{p.supplier}</TableCell>
+                  <TableCell>{p.minStock}</TableCell>
+                </TableRow>
+              );
+            })
           )}
         </TableBody>
       </Table>
