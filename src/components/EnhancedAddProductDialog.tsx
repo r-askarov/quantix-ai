@@ -67,10 +67,14 @@ const EnhancedAddProductDialog: React.FC<EnhancedAddProductDialogProps> = ({ onA
     
     if (productInfo) {
       console.log("Product found:", productInfo);
+      
+      // נשתמש בשם המוצר כספק אם לא מוגדר ספק נפרד
+      const supplierFromName = productInfo.name || "";
+      
       setFormData(prev => ({
         ...prev,
         name: productInfo.name,
-        supplier: productInfo.supplier || prev.supplier,
+        supplier: productInfo.supplier || supplierFromName,
         minStock: productInfo.minStock || prev.minStock,
       }));
       
