@@ -25,11 +25,7 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
   const stopScanning = () => {
     console.log("Stopping scanner...");
     
-    if (readerRef.current) {
-      readerRef.current.reset();
-      console.log("Scanner reset");
-    }
-    
+    // אין צורך ב-reset() - פשוט נעצור את הזרם
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => {
         track.stop();
@@ -60,21 +56,6 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
       const codeReader = new BrowserMultiFormatReader();
       readerRef.current = codeReader;
       
-      // הגדרת הפורמטים הנתמכים
-      const hints = new Map();
-      hints.set(2, [
-        BarcodeFormat.EAN_13,
-        BarcodeFormat.EAN_8,
-        BarcodeFormat.UPC_A,
-        BarcodeFormat.UPC_E,
-        BarcodeFormat.CODE_128,
-        BarcodeFormat.CODE_39,
-        BarcodeFormat.CODE_93,
-        BarcodeFormat.ITF,
-        BarcodeFormat.CODABAR,
-        BarcodeFormat.QR_CODE
-      ]);
-      
       console.log("Requesting camera access...");
       
       // בקשת גישה למצלמה
@@ -98,7 +79,7 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
       
       // התחלת סריקה רציפה
       try {
-        const result = await codeReader.decodeFromVideoDevice(undefined, videoRef.current, (result, error) => {
+        await codeReader.decodeFromVideoDevice(undefined, videoRef.current, (result, error) => {
           if (result) {
             console.log("=== BARCODE DETECTED ===");
             console.log("Detected code:", result.getText());
