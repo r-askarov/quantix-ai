@@ -53,9 +53,32 @@ const Products = () => {
     return Array.from(new Set(products.map((p) => p.supplier).filter(Boolean)));
   }, [products]);
 
+  // במקום סטייט של products: נטען מה-hock
+  const { batches, loading, reload } = useInventoryBatches();
+
+  // 1. נבנה רשימה שממזגת initialProducts שרק לא קיימים כבר בבאצ'ים
+  const mergedProducts = React.useMemo(() => {
+    // ממפה את כל הברקודים הקיימים בבאצ'ים מהדאטהבייס
+    const batchBarcodes = new Set(batches.map(b => b.barcode));
+    // בוחר את המוצרים מ-initialProducts שלא קיימים כבר בבאצ'ים
+    const oldProducts = initialProducts.filter(p => !batchBarcodes.has(p.barcode));
+    // ממיר את batches לפורמט Product ליצירת טבלה ב-ProductsTable
+    const dbProducts: Product[] = batches.map(b => ({
+      barcode: b.barcode,
+      name: b.product_name,
+      quantity: b.quantity,
+      supplier: b.supplier ?? "",
+      minStock: 0, // אם תרצה לתמוך במינימום מלאי מהדאטהבייס, אפשר להוסיף שדה
+      price: Number(b.unit_price) || 0,
+    }));
+    // משלב הכל לרשימה אחת
+    return [...dbProducts, ...oldProducts];
+  }, [batches]);
+
+  // כל הטבלאות וסינונים יופעלו על mergedProducts
   // החלת סינונים ומיון
   const filteredProducts = React.useMemo(() => {
-    let filtered = [...products];
+    let filtered = [...mergedProducts];
     if (supplierFilter) filtered = filtered.filter(p => p.supplier === supplierFilter);
     if (lowStockOnly) filtered = filtered.filter(p => p.quantity <= p.minStock);
     if (quantitySort) {
@@ -66,7 +89,7 @@ const Products = () => {
       );
     }
     return filtered;
-  }, [products, supplierFilter, lowStockOnly, quantitySort]);
+  }, [mergedProducts, supplierFilter, lowStockOnly, quantitySort]);
 
   React.useEffect(() => {
     const savedDatabase = localStorage.getItem('barcodeDatabase');
@@ -145,13 +168,10 @@ const Products = () => {
     );
   };
 
-  // חישוב סך שווי המלאי הנצפה ---
+  // מחשבים סכום כולל
   const totalStockValue = React.useMemo(() => {
     return filteredProducts.reduce((sum, p) => sum + (typeof p.price === "number" ? p.price * p.quantity : 0), 0);
   }, [filteredProducts]);
-
-  // במקום סטייט של products: נטען מה-hock
-  const { batches, loading, reload } = useInventoryBatches();
 
   // מחשבים סכום כולל לכל האצוות
   const totalStockValue2 = React.useMemo(() =>
@@ -244,13 +264,20 @@ const Products = () => {
         </div>
       </div>
 
+      {/* טבלת מוצרים מאוחדת */}
+      <div className="my-6">
+        <ProductsTable products={filteredProducts} />
+      </div>
+
+      {/* ניתן להמשיך להציג טבלת אצוות בנפרד מתחת */}
       <div className="mt-4">
         <InventoryBatchesTable batches={batches} />
       </div>
+
       {/* סכום כולל */}
       <div className="mt-4 flex items-center justify-end">
         <div className="bg-muted/60 text-lg font-bold px-4 py-2 rounded shadow border">
-          סך שווי מלאי מוצג: <span className="font-mono">{totalStockValue2.toLocaleString("he-IL")}</span> <span className="text-base font-normal text-muted-foreground">₪</span>
+          סך שווי מלאי מוצג: <span className="font-mono">{totalStockValue.toLocaleString("he-IL")}</span> <span className="text-base font-normal text-muted-foreground">₪</span>
         </div>
       </div>
       <div className="mt-8">
