@@ -18,58 +18,79 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
   const [scanning, setScanning] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
-  const html5QrCodeRef = React.useRef<any>(null);
+  const [html5QrCode, setHtml5QrCode] = React.useState<any>(null);
+
+  // ניקוי הסורק בעת סגירת הדיאלוג
+  const cleanupScanner = React.useCallback(async () => {
+    if (html5QrCode) {
+      try {
+        console.log("Cleaning up scanner...");
+        await html5QrCode.stop();
+        console.log("Scanner stopped successfully");
+      } catch (err) {
+        console.log("Scanner cleanup error (might be already stopped):", err);
+      }
+    }
+    setHtml5QrCode(null);
+    setScanning(false);
+    setLoading(false);
+    setError(null);
+  }, [html5QrCode]);
 
   React.useEffect(() => {
-    console.log("BarcodeScannerDialog useEffect triggered", { open });
-    
+    if (!open) {
+      cleanupScanner();
+      return;
+    }
+
     if (open && scannerRef.current) {
-      setScanning(false);
+      console.log("=== INITIALIZING BARCODE SCANNER ===");
       setError(null);
       setLoading(true);
-      
-      const startScanner = async () => {
+      setScanning(false);
+
+      const initializeScanner = async () => {
         try {
-          console.log("=== STARTING BARCODE SCANNER ===");
           console.log("Scanner container:", scannerRef.current);
-          console.log("Scanner container ID:", scannerRef.current?.id);
           
           // בדיקת תמיכה במצלמה
-          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            throw new Error("המכשיר לא תומך בגישה למצלמה");
+          if (!navigator.mediaDevices?.getUserMedia) {
+            throw new Error("הדפדפן לא תומך בגישה למצלמה");
           }
-          
-          console.log("Requesting camera permissions...");
-          // בדיקת הרשאות מצלמה
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-              facingMode: "environment" 
-            } 
-          });
-          console.log("Camera stream obtained:", stream);
-          
-          // עצירת הזרם הזמני
-          stream.getTracks().forEach(track => {
-            console.log("Stopping track:", track);
-            track.stop();
-          });
-          
-          console.log("Importing Html5Qrcode...");
+
+          console.log("Requesting camera permissions explicitly...");
+          // בקשת הרשאות מפורשת למצלמה
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+              video: { 
+                facingMode: "environment",
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              } 
+            });
+            console.log("Camera permission granted, stream:", stream);
+            
+            // עצירת הזרם הזמני
+            stream.getTracks().forEach(track => track.stop());
+          } catch (permError) {
+            console.error("Camera permission error:", permError);
+            throw new Error("נדרשת הרשאה לגישה למצלמה");
+          }
+
+          console.log("Loading Html5Qrcode library...");
           const { Html5Qrcode } = await import("html5-qrcode");
-          console.log("Html5Qrcode imported successfully:", Html5Qrcode);
           
           if (!scannerRef.current) {
-            throw new Error("Scanner container not found");
+            throw new Error("Scanner container disappeared");
           }
+
+          const scannerId = "barcode-scanner";
+          console.log("Creating Html5Qrcode instance...");
           
-          const scannerId = scannerRef.current.id;
-          console.log("Creating Html5Qrcode instance with ID:", scannerId);
-          
-          const qr = new Html5Qrcode(scannerId);
-          html5QrCodeRef.current = qr;
-          
-          console.log("Html5Qrcode instance created:", qr);
-          console.log("Starting camera with configuration...");
+          const qrCodeScanner = new Html5Qrcode(scannerId);
+          setHtml5QrCode(qrCodeScanner);
+
+          console.log("Starting camera...");
           
           const config = {
             fps: 10,
@@ -81,160 +102,131 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
               "CODE_128", 
               "CODE_39",
               "CODE_93",
-              "CODE_11",
-              "CODABAR"
-            ],
-            aspectRatio: 1.777778
+              "UPC_A",
+              "UPC_E"
+            ]
           };
-          
-          console.log("Scanner config:", config);
-          
-          await qr.start(
+
+          await qrCodeScanner.start(
             { facingMode: "environment" },
             config,
-            (decodedText: string) => {
+            (decodedText: string, decodedResult: any) => {
               console.log("=== BARCODE DETECTED ===");
-              console.log("Decoded text:", decodedText);
-              console.log("Decoded text type:", typeof decodedText);
-              console.log("Decoded text length:", decodedText.length);
+              console.log("Decoded:", decodedText);
               
-              qr.stop().then(() => {
-                console.log("Scanner stopped successfully");
-                setScanning(false);
-                setLoading(false);
-                console.log("Calling onDetected with:", decodedText);
+              // עצירת הסורק והחזרת התוצאה
+              qrCodeScanner.stop().then(() => {
+                console.log("Scanner stopped after detection");
                 onDetected(decodedText);
                 onClose();
-              }).catch((stopError) => {
-                console.error("Error stopping scanner:", stopError);
+              }).catch((err) => {
+                console.error("Error stopping scanner:", err);
                 onDetected(decodedText);
                 onClose();
               });
             },
             (errorMessage: string) => {
-              // Silent error handling for continuous scanning
-              // רק לוג מפורט לבדיקה
-              if (errorMessage.includes("NotFoundException")) {
-                // זה נורמלי - פירוש שאין ברקוד בתמונה
-              } else {
-                console.log("Scan error (not critical):", errorMessage);
+              // שגיאות רגילות של סריקה - לא מציגות למשתמש
+              if (!errorMessage.includes("NotFoundException")) {
+                console.log("Scan error:", errorMessage);
               }
             }
           );
-          
+
           setScanning(true);
           setLoading(false);
-          setError(null);
           console.log("=== SCANNER STARTED SUCCESSFULLY ===");
-          
-        } catch (err) {
-          console.error("=== SCANNER INITIALIZATION ERROR ===");
-          console.error("Error object:", err);
-          console.error("Error name:", err instanceof Error ? err.name : 'Unknown');
-          console.error("Error message:", err instanceof Error ? err.message : String(err));
-          console.error("Error stack:", err instanceof Error ? err.stack : 'No stack');
-          
+
+        } catch (err: any) {
+          console.error("=== SCANNER ERROR ===", err);
           setLoading(false);
           setScanning(false);
           
-          if (err instanceof Error) {
-            if (err.name === 'NotAllowedError') {
-              setError("אין הרשאה לגישה למצלמה. אנא אפשר/י גישה למצלמה ונסה/י שוב.");
-            } else if (err.name === 'NotFoundError') {
-              setError("לא נמצאה מצלמה במכשיר.");
-            } else if (err.name === 'NotReadableError') {
-              setError("המצלמה בשימוש על ידי אפליקציה אחרת.");
-            } else if (err.message.includes("המכשיר לא תומך")) {
-              setError("המכשיר לא תומך בסריקת ברקוד.");
-            } else {
-              setError(`שגיאה בטעינת הסורק: ${err.message}`);
-            }
-          } else {
-            setError("שגיאה לא ידועה בטעינת הסורק.");
+          let errorMessage = "שגיאה בהפעלת הסורק";
+          
+          if (err.name === 'NotAllowedError' || err.message.includes("הרשאה")) {
+            errorMessage = "נדרשת הרשאה לגישה למצלמה. אנא אפשר גישה ונסה שוב.";
+          } else if (err.name === 'NotFoundError') {
+            errorMessage = "לא נמצאה מצלמה במכשיר";
+          } else if (err.name === 'NotReadableError') {
+            errorMessage = "המצלמה בשימוש באפליקציה אחרת";
+          } else if (err.message.includes("תומך")) {
+            errorMessage = err.message;
           }
+          
+          setError(errorMessage);
         }
       };
 
-      // המתנה קצרה לפני התחלת הסורק
-      const timeout = setTimeout(() => {
-        startScanner();
-      }, 100);
+      // המתנה קצרה לפני התחלה
+      const timer = setTimeout(initializeScanner, 200);
 
       return () => {
-        clearTimeout(timeout);
+        clearTimeout(timer);
       };
     }
 
-    return () => {
-      console.log("Cleanup: stopping scanner");
-      if (html5QrCodeRef.current) {
-        html5QrCodeRef.current.stop()
-          .then(() => {
-            console.log("Scanner stopped in cleanup");
-            return html5QrCodeRef.current?.clear?.();
-          })
-          .catch((err: any) => {
-            console.error("Error in cleanup:", err);
-          });
-      }
-      setScanning(false);
-      setLoading(false);
-      setError(null);
-    };
-  }, [open, onDetected, onClose]);
+    return cleanupScanner;
+  }, [open, onDetected, onClose, cleanupScanner]);
 
-  console.log("Rendering BarcodeScannerDialog", { 
-    open, 
-    scanning, 
-    loading, 
-    error,
-    scannerRefCurrent: !!scannerRef.current 
-  });
+  // ניקוי בעת unmounting
+  React.useEffect(() => {
+    return () => {
+      if (html5QrCode) {
+        html5QrCode.stop().catch(() => {});
+      }
+    };
+  }, [html5QrCode]);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent dir="rtl" className="max-w-md">
         <DialogHeader>
-          <DialogTitle>סרוק/י ברקוד עם המצלמה</DialogTitle>
+          <DialogTitle>סרוק ברקוד עם המצלמה</DialogTitle>
         </DialogHeader>
+        
         <div className="flex flex-col items-center">
           <div
             ref={scannerRef}
             id="barcode-scanner"
-            className="w-full h-72 bg-black rounded flex items-center justify-center relative overflow-hidden"
+            className="w-full h-72 bg-black rounded-lg flex items-center justify-center relative overflow-hidden"
           >
             {loading && (
               <div className="text-white text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
-                <span>טוען סורק...</span>
+                <span>מפעיל מצלמה...</span>
               </div>
             )}
+            
             {error && (
               <div className="text-red-400 text-center px-4">
-                <div className="mb-2">⚠️</div>
-                <div className="text-sm">{error}</div>
+                <div className="text-2xl mb-2">⚠️</div>
+                <div className="text-sm leading-5">{error}</div>
               </div>
             )}
+            
             {scanning && !loading && !error && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="border-2 border-green-400 w-64 h-64 rounded-lg animate-pulse"></div>
+                <div className="border-2 border-green-400 w-64 h-64 rounded-lg"></div>
                 <div className="absolute text-white text-center bottom-4">
                   <div className="text-sm">כוון את המצלמה לברקוד</div>
                 </div>
               </div>
             )}
           </div>
-          <div className="mt-2 text-xs text-gray-700 text-center">
+          
+          <div className="mt-3 text-xs text-gray-600 text-center">
             {error 
-              ? "בדוק/י הרשאות מצלמה בדפדפן ונסה/י שוב" 
+              ? "בדוק הרשאות מצלמה בדפדפן ונסה שוב" 
               : loading 
-              ? "מכין את המצלמה..."
+              ? "טוען מצלמה..."
               : scanning
-              ? "מחפש ברקוד..."
-              : "לחץ על כפתור הסורק להתחלה"
+              ? "מחפש ברקוד - כוון את המצלמה"
+              : "מכין סורק ברקוד..."
             }
           </div>
         </div>
+        
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
             ביטול
