@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,12 +12,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Eye, Star, Calendar, Building2 } from "lucide-react";
+import { Eye, Star, Calendar, Building2, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
 
 interface AllOrdersTableProps {
   onViewOrder: (orderId: string) => void;
+  onEditOrder: (orderId: string) => void;
 }
 
 interface OrderWithSupplier {
@@ -38,7 +38,7 @@ interface OrderWithSupplier {
   }>;
 }
 
-const AllOrdersTable: React.FC<AllOrdersTableProps> = ({ onViewOrder }) => {
+const AllOrdersTable: React.FC<AllOrdersTableProps> = ({ onViewOrder, onEditOrder }) => {
   const { data: orders, isLoading } = useQuery({
     queryKey: ['all-orders'],
     queryFn: async () => {
@@ -163,15 +163,28 @@ const AllOrdersTable: React.FC<AllOrdersTableProps> = ({ onViewOrder }) => {
                   {format(new Date(order.created_at), 'dd/MM/yyyy HH:mm', { locale: he })}
                 </TableCell>
                 <TableCell>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onViewOrder(order.id)}
-                    className="flex items-center gap-1"
-                  >
-                    <Eye className="w-4 h-4" />
-                    צפייה
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onViewOrder(order.id)}
+                      className="flex items-center gap-1"
+                    >
+                      <Eye className="w-4 h-4" />
+                      צפייה
+                    </Button>
+                    {order.status === 'draft' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onEditOrder(order.id)}
+                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
+                      >
+                        <Edit className="w-4 h-4" />
+                        עריכה
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

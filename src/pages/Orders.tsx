@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -43,6 +42,7 @@ const Orders = () => {
   const [selectedSupplier, setSelectedSupplier] = React.useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = React.useState<string | null>(null);
   const [barcodeDatabase, setBarcodeDatabase] = React.useState<Record<string, BarcodeProduct>>({});
+  const [editingOrderId, setEditingOrderId] = React.useState<string | null>(null);
 
   // טעינת מאגר ברקודים מ-localStorage
   React.useEffect(() => {
@@ -85,6 +85,17 @@ const Orders = () => {
   const handleViewOrder = (orderId: string) => {
     setSelectedOrderId(orderId);
     setShowOrderSummary(true);
+  };
+
+  const handleEditOrder = (orderId: string) => {
+    setEditingOrderId(orderId);
+    setShowPurchaseOrder(true);
+  };
+
+  const handleClosePurchaseOrder = () => {
+    setEditingOrderId(null);
+    setShowPurchaseOrder(false);
+    setSelectedSupplier(null);
   };
 
   return (
@@ -131,7 +142,7 @@ const Orders = () => {
         </TabsContent>
 
         <TabsContent value="all-orders" className="mt-6">
-          <AllOrdersTable onViewOrder={handleViewOrder} />
+          <AllOrdersTable onViewOrder={handleViewOrder} onEditOrder={handleEditOrder} />
         </TabsContent>
 
         <TabsContent value="shipping-documents" className="mt-6">
@@ -170,8 +181,9 @@ const Orders = () => {
 
       <PurchaseOrderDialog
         open={showPurchaseOrder}
-        onClose={() => setShowPurchaseOrder(false)}
+        onClose={handleClosePurchaseOrder}
         supplierId={selectedSupplier}
+        editingOrderId={editingOrderId}
       />
 
       <ReceivingDialog

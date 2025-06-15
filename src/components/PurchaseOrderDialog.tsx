@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,12 +22,14 @@ interface PurchaseOrderDialogProps {
   open: boolean;
   onClose: () => void;
   supplierId: string | null;
+  editingOrderId?: string | null;
 }
 
 const PurchaseOrderDialog: React.FC<PurchaseOrderDialogProps> = ({
   open,
   onClose,
   supplierId,
+  editingOrderId,
 }) => {
   const [orderItems, setOrderItems] = React.useState<OrderItem[]>([
     { product_name: "", ordered_quantity: 1 }
@@ -54,65 +55,143 @@ const PurchaseOrderDialog: React.FC<PurchaseOrderDialogProps> = ({
     enabled: !!supplierId
   });
 
+  const { data: existingOrder } = useQuery({
+    queryKey: ['order', editingOrderId],
+    queryFn: async () => {
+      if (!editingOrderId) return null;
+      
+      const { data: order, error: orderError } = await supabase
+        .from('purchase_orders')
+        .select(`
+          *,
+          supplier:suppliers(*),
+          purchase_order_items(*)
+        `)
+        .eq('id', editingOrderId)
+        .single();
+
+      if (orderError) throw orderError;
+      return order;
+    },
+    enabled: !!editingOrderId
+  });
+
+  // טעינת נתוני ההזמנה הקיימת למצב העריכה
+  React.useEffect(() => {
+    if (existingOrder) {
+      const items = existingOrder.purchase_order_items.map((item: any) => ({
+        product_name: item.product_name,
+        ordered_quantity: item.ordered_quantity,
+        unit_price: item.unit_price,
+        notes: item.notes
+      }));
+      setOrderItems(items.length > 0 ? items : [{ product_name: "", ordered_quantity: 1 }]);
+      setNotes(existingOrder.notes || "");
+    }
+  }, [existingOrder]);
+
   const createOrderMutation = useMutation({
     mutationFn: async ({ isDraft }: { isDraft: boolean }) => {
-      if (!supplierId) throw new Error('No supplier selected');
-      
       const validItems = orderItems.filter(item => item.product_name.trim() !== "");
       if (validItems.length === 0) {
         throw new Error('נא להוסיף לפחות פריט אחד');
       }
 
-      const orderNumber = `PO-${Date.now()}`;
-      const deliveryDate = format(addDays(new Date(), 1), 'yyyy-MM-dd');
-      
-      const { data: order, error: orderError } = await supabase
-        .from('purchase_orders')
-        .insert({
-          order_number: orderNumber,
-          supplier_id: supplierId,
-          delivery_date: deliveryDate,
-          status: isDraft ? 'draft' : 'sent',
-          notes: notes.trim() || null
-        })
-        .select()
-        .single();
+      if (editingOrderId) {
+        // עדכון הזמנה קיימת
+        const { data: order, error: orderError } = await supabase
+          .from('purchase_orders')
+          .update({
+            status: isDraft ? 'draft' : 'sent',
+            notes: notes.trim() || null
+          })
+          .eq('id', editingOrderId)
+          .select()
+          .single();
 
-      if (orderError) throw orderError;
+        if (orderError) throw orderError;
 
-      const itemsToInsert = validItems.map(item => ({
-        purchase_order_id: order.id,
-        product_name: item.product_name,
-        ordered_quantity: item.ordered_quantity,
-        unit_price: item.unit_price || null,
-        notes: item.notes || null
-      }));
+        // מחיקת פריטים קיימים
+        const { error: deleteError } = await supabase
+          .from('purchase_order_items')
+          .delete()
+          .eq('purchase_order_id', editingOrderId);
 
-      const { error: itemsError } = await supabase
-        .from('purchase_order_items')
-        .insert(itemsToInsert);
+        if (deleteError) throw deleteError;
 
-      if (itemsError) throw itemsError;
+        // הוספת פריטים מעודכנים
+        const itemsToInsert = validItems.map(item => ({
+          purchase_order_id: editingOrderId,
+          product_name: item.product_name,
+          ordered_quantity: item.ordered_quantity,
+          unit_price: item.unit_price || null,
+          notes: item.notes || null
+        }));
 
-      return order;
+        const { error: itemsError } = await supabase
+          .from('purchase_order_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) throw itemsError;
+
+        return order;
+      } else {
+        // יצירת הזמנה חדשה
+        if (!supplierId) throw new Error('No supplier selected');
+        
+        const orderNumber = `PO-${Date.now()}`;
+        const deliveryDate = format(addDays(new Date(), 1), 'yyyy-MM-dd');
+        
+        const { data: order, error: orderError } = await supabase
+          .from('purchase_orders')
+          .insert({
+            order_number: orderNumber,
+            supplier_id: supplierId,
+            delivery_date: deliveryDate,
+            status: isDraft ? 'draft' : 'sent',
+            notes: notes.trim() || null
+          })
+          .select()
+          .single();
+
+        if (orderError) throw orderError;
+
+        const itemsToInsert = validItems.map(item => ({
+          purchase_order_id: order.id,
+          product_name: item.product_name,
+          ordered_quantity: item.ordered_quantity,
+          unit_price: item.unit_price || null,
+          notes: item.notes || null
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('purchase_order_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) throw itemsError;
+
+        return order;
+      }
     },
     onSuccess: (order, { isDraft }) => {
       queryClient.invalidateQueries({ queryKey: ['suppliers-needing-orders'] });
       queryClient.invalidateQueries({ queryKey: ['today-deliveries'] });
+      queryClient.invalidateQueries({ queryKey: ['all-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['suppliers-with-orders'] });
       
       toast({
-        title: isDraft ? "טיוטה נשמרה" : "הזמנה נשלחה",
-        description: `הזמנה ${order.order_number} ${isDraft ? 'נשמרה כטיוטה' : 'נשלחה לספק'} בהצלחה`,
+        title: editingOrderId ? (isDraft ? "טיוטה עודכנה" : "הזמנה עודכנה") : (isDraft ? "טיוטה נשמרה" : "הזמנה נשלחה"),
+        description: `הזמנה ${order.order_number} ${editingOrderId ? 'עודכנה' : isDraft ? 'נשמרה כטיוטה' : 'נשלחה לספק'} בהצלחה`,
       });
       
       resetForm();
       onClose();
     },
     onError: (error) => {
-      console.error('Error creating order:', error);
+      console.error('Error creating/updating order:', error);
       toast({
         title: "שגיאה",
-        description: error.message || "שגיאה ביצירת ההזמנה",
+        description: error.message || "שגיאה ביצירת/עדכון ההזמנה",
         variant: "destructive",
       });
     }
@@ -142,13 +221,16 @@ const PurchaseOrderDialog: React.FC<PurchaseOrderDialogProps> = ({
     onClose();
   };
 
-  if (!supplier) return null;
+  const currentSupplier = supplier || existingOrder?.supplier;
+  if (!currentSupplier) return null;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent dir="rtl" className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>יצירת הזמנת רכש - {supplier.name}</DialogTitle>
+          <DialogTitle>
+            {editingOrderId ? 'עריכת הזמנת רכש' : 'יצירת הזמנת רכש'} - {currentSupplier.name}
+          </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-6">
@@ -157,16 +239,27 @@ const PurchaseOrderDialog: React.FC<PurchaseOrderDialogProps> = ({
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-muted-foreground">שם: </span>
-                <span>{supplier.name}</span>
+                <span>{currentSupplier.name}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">דדליין: </span>
-                <span>{supplier.deadline_hour}</span>
+                <span>{currentSupplier.deadline_hour}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">תאריך אספקה: </span>
-                <span>{format(addDays(new Date(), 1), 'dd/MM/yyyy', { locale: he })}</span>
+                <span>
+                  {existingOrder 
+                    ? format(new Date(existingOrder.delivery_date), 'dd/MM/yyyy', { locale: he })
+                    : format(addDays(new Date(), 1), 'dd/MM/yyyy', { locale: he })
+                  }
+                </span>
               </div>
+              {editingOrderId && (
+                <div>
+                  <span className="text-muted-foreground">מספר הזמנה: </span>
+                  <span>{existingOrder?.order_number}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -260,14 +353,14 @@ const PurchaseOrderDialog: React.FC<PurchaseOrderDialogProps> = ({
             disabled={createOrderMutation.isPending}
           >
             <Save className="w-4 h-4 ml-1" />
-            שמור טיוטה
+            {editingOrderId ? 'עדכן טיוטה' : 'שמור טיוטה'}
           </Button>
           <Button 
             onClick={() => createOrderMutation.mutate({ isDraft: false })}
             disabled={createOrderMutation.isPending}
           >
             <Send className="w-4 h-4 ml-1" />
-            שלח הזמנה
+            {editingOrderId ? 'עדכן ושלח' : 'שלח הזמנה'}
           </Button>
         </DialogFooter>
       </DialogContent>
