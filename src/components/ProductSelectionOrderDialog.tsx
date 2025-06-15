@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -224,7 +225,7 @@ const ProductSelectionOrderDialog: React.FC<ProductSelectionOrderDialogProps> = 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent dir="rtl" className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col">
+      <DialogContent dir="rtl" className="max-w-5xl h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
@@ -296,107 +297,109 @@ const ProductSelectionOrderDialog: React.FC<ProductSelectionOrderDialogProps> = 
           )}
 
           {/* רשימת מוצרים עם גלילה משופרת */}
-          <ScrollArea className="flex-1 border rounded-lg min-h-[400px]">
-            <div className="p-4">
-              {filteredProducts.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <div className="text-lg font-medium mb-2">
-                    {supplierProducts.length === 0 
-                      ? "אין מוצרים עבור ספק זה"
-                      : "לא נמצאו מוצרים"
-                    }
+          <div className="flex-1 border rounded-lg overflow-hidden">
+            <ScrollArea className="h-full">
+              <div className="p-4 max-h-[50vh] overflow-y-auto">
+                {filteredProducts.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <div className="text-lg font-medium mb-2">
+                      {supplierProducts.length === 0 
+                        ? "אין מוצרים עבור ספק זה"
+                        : "לא נמצאו מוצרים"
+                      }
+                    </div>
+                    <div className="text-sm">
+                      {searchTerm || selectedCategory 
+                        ? "נסה לשנות את קריטריוני החיפוש או הסינון"
+                        : "הוסף מוצרים למאגר הברקודים עבור ספק זה"
+                      }
+                    </div>
                   </div>
-                  <div className="text-sm">
-                    {searchTerm || selectedCategory 
-                      ? "נסה לשנות את קריטריוני החיפוש או הסינון"
-                      : "הוסף מוצרים למאגר הברקודים עבור ספק זה"
-                    }
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {filteredProducts.map((product, index) => {
-                    const currentQuantity = orderItems[product.barcode]?.ordered_quantity || 0;
-                    
-                    return (
-                      <div 
-                        key={product.barcode} 
-                        className={`border rounded-lg p-4 transition-all duration-200 hover:shadow-md ${
-                          currentQuantity > 0 ? 'border-green-300 bg-green-50' : 'border-border'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg mb-1">{product.name}</h3>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <span className="font-mono">ברקוד: {product.barcode}</span>
-                              {product.unitPrice && (
-                                <span className="font-medium text-green-600">
-                                  מחיר: ₪{product.unitPrice}
+                ) : (
+                  <div className="space-y-4">
+                    {filteredProducts.map((product, index) => {
+                      const currentQuantity = orderItems[product.barcode]?.ordered_quantity || 0;
+                      
+                      return (
+                        <div 
+                          key={product.barcode} 
+                          className={`border rounded-lg p-4 transition-all duration-200 hover:shadow-md ${
+                            currentQuantity > 0 ? 'border-green-300 bg-green-50' : 'border-border'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg mb-1">{product.name}</h3>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <span className="font-mono">ברקוד: {product.barcode}</span>
+                                {product.unitPrice && (
+                                  <span className="font-medium text-green-600">
+                                    מחיר: ₪{product.unitPrice}
+                                  </span>
+                                )}
+                                {product.category && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {product.category}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateQuantity(product.barcode, product, currentQuantity - 1)}
+                                disabled={currentQuantity <= 0}
+                                className="w-10 h-10 p-0"
+                              >
+                                <Minus className="w-4 h-4" />
+                              </Button>
+                              <div className="w-16 text-center">
+                                <span className="text-lg font-bold text-primary">
+                                  {currentQuantity}
                                 </span>
-                              )}
-                              {product.category && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {product.category}
-                                </Badge>
-                              )}
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateQuantity(product.barcode, product, currentQuantity + 1)}
+                                className="w-10 h-10 p-0"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </Button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateQuantity(product.barcode, product, currentQuantity - 1)}
-                              disabled={currentQuantity <= 0}
-                              className="w-10 h-10 p-0"
-                            >
-                              <Minus className="w-4 h-4" />
-                            </Button>
-                            <div className="w-16 text-center">
-                              <span className="text-lg font-bold text-primary">
-                                {currentQuantity}
-                              </span>
+                          
+                          {currentQuantity > 0 && (
+                            <div className="mt-3 pt-3 border-t border-green-200">
+                              <Label className="text-sm font-medium mb-2 block">
+                                הערה למוצר זה:
+                              </Label>
+                              <Input
+                                placeholder="הערות אופציונליות עבור מוצר זה..."
+                                value={orderItems[product.barcode]?.notes || ""}
+                                onChange={(e) => updateItemNotes(product.barcode, e.target.value)}
+                                className="bg-white"
+                              />
                             </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateQuantity(product.barcode, product, currentQuantity + 1)}
-                              className="w-10 h-10 p-0"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          )}
                         </div>
-                        
-                        {currentQuantity > 0 && (
-                          <div className="mt-3 pt-3 border-t border-green-200">
-                            <Label className="text-sm font-medium mb-2 block">
-                              הערה למוצר זה:
-                            </Label>
-                            <Input
-                              placeholder="הערות אופציונליות עבור מוצר זה..."
-                              value={orderItems[product.barcode]?.notes || ""}
-                              onChange={(e) => updateItemNotes(product.barcode, e.target.value)}
-                              className="bg-white"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  
-                  {/* אינדיקטור סוף הרשימה */}
-                  <div className="text-center py-4 text-sm text-muted-foreground border-t">
-                    הצגת {filteredProducts.length} מוצרים
-                    {searchTerm || selectedCategory ? (
-                      <span> (מתוך {supplierProducts.length} סה"כ)</span>
-                    ) : null}
+                      );
+                    })}
+                    
+                    {/* אינדיקטור סוף הרשימה */}
+                    <div className="text-center py-4 text-sm text-muted-foreground border-t">
+                      הצגת {filteredProducts.length} מוצרים
+                      {searchTerm || selectedCategory ? (
+                        <span> (מתוך {supplierProducts.length} סה"כ)</span>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
 
           {/* הערות כלליות */}
           <div className="space-y-2">
