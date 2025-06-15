@@ -6,9 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { CalendarIcon, Barcode as BarcodeIcon } from "lucide-react";
-import { format } from "date-fns";
 import BarcodeScannerDialog from "./BarcodeScannerDialog";
-
 import { Product } from "@/pages/Products";
 
 // טעינה של DatePicker עדין - ניתן לעטוף ב-Input במידת הצורך
@@ -27,8 +25,13 @@ function DateInput({ value, onChange }: { value: string | null; onChange: (val: 
   );
 }
 
-// props: תומך ב-onAdd (עם expiryDate) ו-barcodeDatabase
-const EnhancedAddProductDialog = ({ onAdd, barcodeDatabase }: { onAdd: (product: Product) => void, barcodeDatabase: any }) => {
+const EnhancedAddProductDialog = ({
+  onAdd,
+  barcodeDatabase,
+}: {
+  onAdd: (product: Product) => void;
+  barcodeDatabase: any;
+}) => {
   const [open, setOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [product, setProduct] = useState<Partial<Product>>({
@@ -41,31 +44,48 @@ const EnhancedAddProductDialog = ({ onAdd, barcodeDatabase }: { onAdd: (product:
     expiryDate: null,
   });
 
-  // עבור קלט expiryDate
-  const handleExpiryDateChange = (val: string | null) => {
-    setProduct(prev => ({
+  // השלמה אוטומטית ממאגר הברקודים
+  const handleBarcodeChangeAndAutoFill = (barcodeValue: string) => {
+    let autoFields = {};
+    if (barcodeDatabase && barcodeDatabase[barcodeValue]) {
+      const dbProd = barcodeDatabase[barcodeValue];
+      autoFields = {
+        name: dbProd.name ?? "",
+        supplier: dbProd.supplier ?? "",
+        minStock: dbProd.minStock ?? 1,
+      };
+      if (dbProd.name) {
+        toast({ title: "נמצא במאגר: " + dbProd.name });
+      }
+    }
+    setProduct((prev) => ({
       ...prev,
-      expiryDate: val,
+      barcode: barcodeValue,
+      ...autoFields,
     }));
   };
 
+  // שינוי שדה קלט רגיל
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setProduct(prev => ({
-      ...prev,
-      [e.target.name]:
-        e.target.type === "number" ? Number(e.target.value) : e.target.value,
-    }));
+    const { name, value, type } = e.target;
+    if (name === "barcode") {
+      handleBarcodeChangeAndAutoFill(value);
+    } else {
+      setProduct((prev) => ({
+        ...prev,
+        [name]: type === "number" ? Number(value) : value,
+      }));
+    }
   };
 
+  // סיום סריקת ברקוד
   const handleBarcodeScan = (code: string) => {
-    setProduct(prev => ({
-      ...prev,
-      barcode: code,
-    }));
+    handleBarcodeChangeAndAutoFill(code);
     toast({ title: "ברקוד נסרק בהצלחה!" });
     setScannerOpen(false);
   };
 
+  // ביצוע שליחה
   const handleSubmit = () => {
     if (!product.barcode || !product.name || !product.supplier || !product.quantity || !product.price) {
       toast({ title: "נא למלא את כל השדות החובה!", variant: "destructive" });
@@ -91,6 +111,13 @@ const EnhancedAddProductDialog = ({ onAdd, barcodeDatabase }: { onAdd: (product:
       quantity: 0,
       expiryDate: null,
     });
+  };
+
+  const handleExpiryDateChange = (val: string | null) => {
+    setProduct(prev => ({
+      ...prev,
+      expiryDate: val,
+    }));
   };
 
   return (
@@ -145,4 +172,3 @@ const EnhancedAddProductDialog = ({ onAdd, barcodeDatabase }: { onAdd: (product:
 };
 
 export default EnhancedAddProductDialog;
-
