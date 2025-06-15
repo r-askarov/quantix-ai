@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,6 +13,7 @@ import Orders from "./pages/Orders";
 import Suppliers from "./pages/Suppliers";
 import Dashboard from "./pages/Dashboard";
 import BarcodeDatabase from "./pages/BarcodeDatabase";
+import SupplierDetails from "./pages/SupplierDetails";
 
 const App = () => {
   // Create QueryClient inside the component to avoid hook issues
@@ -38,6 +38,7 @@ const App = () => {
             <Route path="/products" element={<Products />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/suppliers" element={<Suppliers />} />
+            <Route path="/suppliers/:id" element={<SupplierDetails />} />
             <Route path="/barcode-database" element={<BarcodeDatabase />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

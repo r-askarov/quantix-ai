@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Link } from "react-router-dom";
 import SupplierCard from "@/components/SupplierCard";
@@ -65,8 +64,22 @@ const Suppliers = () => {
   };
 
   const handleViewSupplier = (supplierName: string) => {
-    // TODO: ניווט לעמוד ספק מפורט
-    alert("מעבר לדף ספק (בעתיד): " + supplierName);
+    // ניווט לכתובת עם מזהה/שם הספק
+    const selectedSupplier = Object.values(barcodeDatabase).find(
+      p => p.supplier && p.supplier.trim() === supplierName
+    );
+    // אם יש ערך מזהה מסופאבייס, נשתמש בו, אחרת לפי שם
+    let supplierId = undefined;
+    if (selectedSupplier && selectedSupplier.supplier_id) {
+      supplierId = selectedSupplier.supplier_id;
+    }
+    // ננווט או לפי שם הספק (אם אין מזהה) או לפי id
+    if (supplierId) {
+      window.location.href = `/suppliers/${supplierId}`;
+    } else {
+      // fallback: ניווט לפי שם
+      window.location.href = `/suppliers/${encodeURIComponent(supplierName)}`;
+    }
   };
 
   return (
