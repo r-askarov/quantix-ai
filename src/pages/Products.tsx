@@ -23,6 +23,7 @@ export interface Product {
   supplier: string;
   minStock: number;
   price: number;
+  expiryDate?: string | null; // New field (ISO date string or null)
 }
 
 const initialProducts: Product[] = [
@@ -61,8 +62,13 @@ const Products = () => {
     // ממפה את כל הברקודים הקיימים בבאצ'ים מהדאטהבייס
     const batchBarcodes = new Set(batches.map(b => b.barcode));
     // בוחר את המוצרים מ-initialProducts שלא קיימים כבר בבאצ'ים
-    const oldProducts = initialProducts.filter(p => !batchBarcodes.has(p.barcode));
-    // ממיר את batches לפורמט Product ליצירת טבלה ב-ProductsTable
+    const oldProducts = initialProducts
+      .filter(p => !batchBarcodes.has(p.barcode))
+      .map(p => ({
+        ...p,
+        expiryDate: null, // אין תאריך במוצרים ללא באצ'
+      }));
+    // ממיר את batches לפורמט Product ליצירת טבלה ב-ProductsTable (כולל expiryDate)
     const dbProducts: Product[] = batches.map(b => ({
       barcode: b.barcode,
       name: b.product_name,
@@ -70,6 +76,7 @@ const Products = () => {
       supplier: b.supplier ?? "",
       minStock: 0, // אם תרצה לתמוך במינימום מלאי מהדאטהבייס, אפשר להוסיף שדה
       price: Number(b.unit_price) || 0,
+      expiryDate: b.expiry_date ?? null,
     }));
     // משלב הכל לרשימה אחת
     return [...dbProducts, ...oldProducts];
