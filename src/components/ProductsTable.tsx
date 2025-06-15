@@ -1,7 +1,7 @@
 
 import * as React from "react";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-import type { Product } from "./AddProductDialog";
+import type { Product } from "../pages/Products"; // Use the Product type with price from Products.tsx
 
 interface ProductsTableProps {
   products: Product[];

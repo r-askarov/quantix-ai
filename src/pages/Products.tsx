@@ -2,7 +2,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import ProductsTable from "@/components/ProductsTable";
-import EnhancedAddProductDialog, { Product } from "@/components/EnhancedAddProductDialog";
+import EnhancedAddProductDialog from "@/components/EnhancedAddProductDialog";
 import ExcelImportDialog, { BarcodeDatabase } from "@/components/ExcelImportDialog";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -15,6 +15,16 @@ import {
 import { Toggle } from "@/components/ui/toggle";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, RotateCcw, ArrowDown, ArrowUp } from "lucide-react";
+
+// ---- Product type definition updated here ----
+export interface Product {
+  barcode: string;
+  name: string;
+  quantity: number;
+  supplier: string;
+  minStock: number;
+  price: number;
+}
 
 const initialProducts: Product[] = [
   { barcode: "7290001234567", name: "מברגה בוש", quantity: 13, supplier: "חשמל יצחק", minStock: 5, price: 349 },
