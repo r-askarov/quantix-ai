@@ -45,162 +45,202 @@ const OCRShippingDocumentDialog: React.FC<OCRShippingDocumentDialogProps> = ({ o
     
     console.log('OCR Text Lines:', lines);
     
-    // תבניות מסודרות לזיהוי ברקודים ושמות מוצרים
-    const structuredPatterns = [
-      // תבנית 1: ברקוד בשורה נפרדת ואחריו שם המוצר וכמות
-      {
-        barcodePattern: /^[0-9]{8,13}$/, // ברקוד סטנדרטי
-        nameQuantityPattern: /(.+?)\s+(?:כמות|qty|x)\s*:?\s*(\d+)/i
-      },
-      // תבנית 2: שם מוצר ברקוד וכמות באותה שורה
-      {
-        combinedPattern: /(.+?)\s+([0-9]{8,13})\s+(?:כמות|qty|x)\s*:?\s*(\d+)/i
-      },
-      // תבנית 3: שורות עם פורמט טבלה - שם | ברקוד | כמות
-      {
-        tablePattern: /(.+?)\s*\|\s*([0-9]{8,13})\s*\|\s*(\d+)/
-      },
-      // תבנית 4: ברקוד מתחיל ב-SKU או דומה
-      {
-        skuPattern: /(?:SKU|sku|קוד)\s*:?\s*([0-9A-Za-z-_]{6,})\s+(.+?)\s+(?:כמות|qty|x)\s*:?\s*(\d+)/i
+    // חיפוש כותרות עמודות לזיהוי המבנה
+    const headerPatterns = {
+      itemName: /שם\s*פריט|פריט|מוצר/i,
+      barcode: /בר\s*קוד|ברקוד|קוד|sku/i,
+      quantity: /בודדים|כמות|יח|qty/i
+    };
+
+    let headerLine = -1;
+    let itemNameCol = -1;
+    let barcodeCol = -1;
+    let quantityCol = -1;
+
+    // זיהוי שורת הכותרות
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      console.log(`Checking header line ${i}:`, line);
+      
+      if (headerPatterns.itemName.test(line) && 
+          (headerPatterns.barcode.test(line) || headerPatterns.quantity.test(line))) {
+        headerLine = i;
+        
+        // זיהוי מיקום העמודות לפי המיקום בשורה
+        const words = line.split(/\s+/);
+        console.log('Header words:', words);
+        
+        words.forEach((word, index) => {
+          if (headerPatterns.itemName.test(word)) {
+            itemNameCol = index;
+            console.log('Found item name column at:', index);
+          }
+          if (headerPatterns.barcode.test(word)) {
+            barcodeCol = index;
+            console.log('Found barcode column at:', index);
+          }
+          if (headerPatterns.quantity.test(word)) {
+            quantityCol = index;
+            console.log('Found quantity column at:', index);
+          }
+        });
+        break;
       }
+    }
+
+    console.log(`Header found at line ${headerLine}, columns: name=${itemNameCol}, barcode=${barcodeCol}, quantity=${quantityCol}`);
+
+    // אם מצאנו כותרות, נעבד את השורות שאחריהן כטבלה
+    if (headerLine >= 0 && itemNameCol >= 0 && quantityCol >= 0) {
+      for (let i = headerLine + 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line || line.length < 5) continue;
+        
+        console.log(`Processing data line ${i}:`, line);
+        
+        // פיצול השורה לעמודות
+        const columns = line.split(/\s+/);
+        console.log('Data columns:', columns);
+        
+        if (columns.length >= Math.max(itemNameCol, quantityCol) + 1) {
+          let name = '';
+          let barcode = '';
+          let quantity = 0;
+          
+          // חילוץ שם הפריט
+          if (itemNameCol < columns.length) {
+            // נסה לחבר מספר מילים לשם הפריט אם יש
+            const nameWords = [];
+            for (let j = itemNameCol; j < columns.length; j++) {
+              const col = columns[j];
+              // אם זה לא נראה כמו מספר או ברקוד, נוסיף לשם
+              if (!/^\d+$/.test(col) && !/^[0-9]{8,13}$/.test(col)) {
+                nameWords.push(col);
+              } else {
+                break;
+              }
+            }
+            name = nameWords.join(' ');
+          }
+          
+          // חילוץ ברקוד
+          if (barcodeCol >= 0 && barcodeCol < columns.length) {
+            barcode = columns[barcodeCol];
+          } else {
+            // חיפוש ברקוד בשורה (מספר של 8-13 ספרות)
+            const barcodeMatch = line.match(/\b[0-9]{8,13}\b/);
+            if (barcodeMatch) {
+              barcode = barcodeMatch[0];
+            }
+          }
+          
+          // חילוץ כמות
+          if (quantityCol < columns.length) {
+            const quantityStr = columns[quantityCol];
+            const quantityNum = parseInt(quantityStr);
+            if (!isNaN(quantityNum) && quantityNum > 0) {
+              quantity = quantityNum;
+            }
+          }
+          
+          // אם לא מצאנו כמות בעמודה הצפויה, נחפש מספר בשורה
+          if (quantity === 0) {
+            const numbers = line.match(/\b(\d+)\b/g);
+            if (numbers) {
+              for (const num of numbers) {
+                const n = parseInt(num);
+                if (n > 0 && n < 10000 && num !== barcode) { // סביר שזו כמות
+                  quantity = n;
+                  break;
+                }
+              }
+            }
+          }
+          
+          console.log(`Extracted: name="${name}", barcode="${barcode}", quantity=${quantity}`);
+          
+          // הוספת הפריט אם יש לו שם וכמות
+          if (name.length > 2 && quantity > 0) {
+            items.push({
+              name: name.trim(),
+              quantity: quantity,
+              status: 'match',
+              barcode: barcode || undefined
+            });
+            console.log(`Added item: ${name}, Barcode: ${barcode}, Quantity: ${quantity}`);
+          }
+        }
+      }
+    }
+
+    // אם לא מצאנו פריטים עם השיטה המובנית, ננסה שיטות גיבוי
+    if (items.length === 0) {
+      console.log('No structured table found, trying alternative parsing methods');
+      return parseAlternativeFormats(lines);
+    }
+
+    console.log(`Found ${items.length} items using table structure parsing`);
+    return items;
+  };
+
+  const parseAlternativeFormats = (lines: string[]): ShippingItem[] => {
+    const items: ShippingItem[] = [];
+    
+    // תבניות חלופיות לזיהוי פריטים
+    const patterns = [
+      // תבנית: שם פריט [ברקוד] כמות
+      /(.+?)\s+([0-9]{8,13})\s+(\d+)\s*(?:בודדים|יח)?/i,
+      // תבנית: מספר שם פריט ברקוד כמות
+      /^\d+\s+(.+?)\s+([0-9]{8,13})\s+(\d+)/i,
+      // תבנית: שם פריט כמות (ללא ברקוד)
+      /(.+?)\s+(\d+)\s*(?:בודדים|יח)/i,
+      // תבנית: שם פריט [מספרים שונים] כמות בסוף
+      /(.+?)\s+.*?(\d+)\s*$/
     ];
 
-    // נעבור על השורות ונחפש תבניות מסודרות
-    for (let i = 0; i < lines.length; i++) {
-      const currentLine = lines[i].trim();
-      const nextLine = i + 1 < lines.length ? lines[i + 1].trim() : '';
+    lines.forEach((line, index) => {
+      console.log(`Trying alternative parsing for line ${index}: ${line}`);
       
-      // בדיקה אם השורה הנוכחית היא ברקוד
-      if (structuredPatterns[0].barcodePattern.test(currentLine)) {
-        const barcode = currentLine;
-        
-        // נחפש בשורה הבאה שם מוצר וכמות
-        const nameQuantityMatch = nextLine.match(structuredPatterns[0].nameQuantityPattern);
-        if (nameQuantityMatch) {
-          const name = nameQuantityMatch[1].trim();
-          const quantity = parseInt(nameQuantityMatch[2]);
+      for (const pattern of patterns) {
+        const match = line.match(pattern);
+        if (match) {
+          let name = '';
+          let barcode = '';
+          let quantity = 0;
           
-          if (name.length > 2 && quantity > 0) {
+          if (pattern.source.includes('([0-9]{8,13})')) {
+            // תבנית עם ברקוד
+            name = match[1].trim();
+            barcode = match[2];
+            quantity = parseInt(match[3]);
+          } else {
+            // תבנית ללא ברקוד
+            name = match[1].trim();
+            quantity = parseInt(match[2]);
+            
+            // נסה למצוא ברקוד בשורה
+            const barcodeMatch = line.match(/\b[0-9]{8,13}\b/);
+            if (barcodeMatch) {
+              barcode = barcodeMatch[0];
+            }
+          }
+          
+          if (name.length > 2 && quantity > 0 && quantity < 10000) {
+            // נקה את השם ממספרים מיותרים
+            name = name.replace(/^\d+\s*/, '').trim();
+            
             items.push({
               name: name,
               quantity: quantity,
               status: 'match',
-              barcode: barcode
+              barcode: barcode || undefined
             });
-            console.log(`Found structured item: ${name}, Barcode: ${barcode}, Quantity: ${quantity}`);
-            i++; // דלג על השורה הבאה כי כבר עיבדנו אותה
-            continue;
+            console.log(`Added alternative item: ${name}, Barcode: ${barcode}, Quantity: ${quantity}`);
+            break;
           }
         }
       }
-      
-      // בדיקה לתבנית משולבת (שם + ברקוד + כמות באותה שורה)
-      const combinedMatch = currentLine.match(structuredPatterns[1].combinedPattern);
-      if (combinedMatch) {
-        const name = combinedMatch[1].trim();
-        const barcode = combinedMatch[2];
-        const quantity = parseInt(combinedMatch[3]);
-        
-        if (name.length > 2 && quantity > 0) {
-          items.push({
-            name: name,
-            quantity: quantity,
-            status: 'match',
-            barcode: barcode
-          });
-          console.log(`Found combined item: ${name}, Barcode: ${barcode}, Quantity: ${quantity}`);
-          continue;
-        }
-      }
-      
-      // בדיקה לתבנית טבלה
-      const tableMatch = currentLine.match(structuredPatterns[2].tablePattern);
-      if (tableMatch) {
-        const name = tableMatch[1].trim();
-        const barcode = tableMatch[2];
-        const quantity = parseInt(tableMatch[3]);
-        
-        if (name.length > 2 && quantity > 0) {
-          items.push({
-            name: name,
-            quantity: quantity,
-            status: 'match',
-            barcode: barcode
-          });
-          console.log(`Found table item: ${name}, Barcode: ${barcode}, Quantity: ${quantity}`);
-          continue;
-        }
-      }
-      
-      // בדיקה לתבנית SKU
-      const skuMatch = currentLine.match(structuredPatterns[3].skuPattern);
-      if (skuMatch) {
-        const sku = skuMatch[1];
-        const name = skuMatch[2].trim();
-        const quantity = parseInt(skuMatch[3]);
-        
-        if (name.length > 2 && quantity > 0) {
-          items.push({
-            name: name,
-            quantity: quantity,
-            status: 'match',
-            barcode: sku
-          });
-          console.log(`Found SKU item: ${name}, SKU: ${sku}, Quantity: ${quantity}`);
-          continue;
-        }
-      }
-    }
-
-    // אם לא מצאנו פריטים עם התבניות המסודרות, ננסה את השיטה הישנה כגיבוי
-    if (items.length === 0) {
-      console.log('No structured patterns found, falling back to legacy parsing');
-      return parseLegacyFormat(lines);
-    }
-
-    console.log(`Found ${items.length} structured items`);
-    return items;
-  };
-
-  const parseLegacyFormat = (lines: string[]): ShippingItem[] => {
-    const items: ShippingItem[] = [];
-    
-    // השיטה הישנה לגיבוי
-    const itemPatterns = [
-      /(.+?)\s+(\d+)\s*יח[׳']?/g,
-      /(.+?)\s+כמות[:\s]*(\d+)/g,
-      /(.+?)\s+x\s*(\d+)/g,
-      /(\d+)\s+(.+)/g
-    ];
-
-    for (const line of lines) {
-      for (const pattern of itemPatterns) {
-        const matches = [...line.matchAll(pattern)];
-        for (const match of matches) {
-          let name = '';
-          let quantity = 0;
-          
-          if (pattern.source.includes('(\\d+)\\s+(.+)')) {
-            quantity = parseInt(match[1]);
-            name = match[2].trim();
-          } else {
-            name = match[1].trim();
-            quantity = parseInt(match[2]);
-          }
-
-          if (name && quantity > 0 && name.length > 2) {
-            if (!/^\d+$/.test(name) && !/\d{2}\/\d{2}\/\d{4}/.test(name)) {
-              items.push({
-                name: name,
-                quantity: quantity,
-                status: 'match'
-              });
-            }
-          }
-        }
-      }
-    }
+    });
 
     return items;
   };
@@ -275,7 +315,7 @@ const OCRShippingDocumentDialog: React.FC<OCRShippingDocumentDialogProps> = ({ o
       if (parsedItems.length === 0) {
         toast({
           title: "לא נמצאו פריטים",
-          description: "לא הצלחנו לזהות פריטים בתעודת המשלוח. נסה תמונה בהירה יותר או ודא שהמסמך מכיל תבנית מסודרת.",
+          description: "לא הצלחנו לזהות פריטים בתעודת המשלוח. ודא שהתמונה מכילה טבלה עם עמודות: שם פריט, בר קוד, בודדים",
           variant: "destructive",
         });
         return;
@@ -286,7 +326,7 @@ const OCRShippingDocumentDialog: React.FC<OCRShippingDocumentDialogProps> = ({ o
 
       toast({
         title: "הסריקה הושלמה בהצלחה!",
-        description: `זוהו ${parsedItems.length} פריטים בתעודת המשלוח בתבנית מסודרת`,
+        description: `זוהו ${parsedItems.length} פריטים מהעמודות: שם פריט, בר קוד, בודדים`,
       });
 
       setOpen(false);
@@ -340,13 +380,13 @@ const OCRShippingDocumentDialog: React.FC<OCRShippingDocumentDialogProps> = ({ o
           )}
 
           <div className="text-xs text-gray-500">
-            <p>טיפים לסריקה מסודרת יותר:</p>
+            <p>המערכת מזהה טבלאות עם העמודות הבאות:</p>
             <ul className="list-disc pr-5 mt-1">
-              <li>ודא שהתמונה חדה ובהירה</li>
-              <li>הטקסט צריך להיות ברור וקריא</li>
-              <li>נסה לצלם ישר מעל המסמך</li>
-              <li>התבנית המועדפת: ברקוד בשורה נפרדת ואחריו שם המוצר וכמות</li>
-              <li>תבניות נתמכות: "שם מוצר כמות: X" או "שם | ברקוד | כמות"</li>
+              <li><strong>שם פריט</strong> - יועבר לעמודת "שם מוצר"</li>
+              <li><strong>בר קוד</strong> - יועבר לעמודת "ברקוד/SKU"</li>
+              <li><strong>בודדים</strong> - יועבר לעמודת "כמות"</li>
+              <li>ודא שהטקסט בתמונה חד וברור</li>
+              <li>העמודות צריכות להיות מסודרות בטבלה</li>
             </ul>
           </div>
 
