@@ -37,19 +37,49 @@ function useSupplierData(supplierId?: string) {
         setLoading(false);
       });
 
-    // מוצרים (localStorage)
+    // שליפת מוצרים גם לפי supplier_id וגם לפי שם הספק (אם קיים)
     const barcodeDb = localStorage.getItem("barcodeDatabase");
     let arr: any[] = [];
     if (barcodeDb) {
       try {
         const parsed = JSON.parse(barcodeDb);
+        // נאסוף תחילה לפי supplier_id (UUID)
         arr = Object.values(parsed).filter(
-          (prod: any) => prod.supplier_id === supplierId || prod.supplier === supplierId
+          (prod: any) => prod.supplier_id === supplierId
         );
+        // אם אין תוצאות כלל, ננסה גם לפי שם הספק
+        if (arr.length === 0 && supplierId) {
+          // נמצא את שם הספק על פי ה-UUID מהטבלה (אם קיים ב-localStorage)
+          let supplierName = undefined;
+          if (parsed && Object.values(parsed).length > 0) {
+            // נחפש שם מוצר שיש לו supplier_id === supplierId ומשם ניקח את השם
+            // אך מכיוון שאין כנראה כזה, נסתמך על מה שמסופק ב-localStorage (תא ודוק)
+          }
+          // אם המידע של Name קיים, בינתיים ניקח מאותו ספק טבלאי (כלומר, רק אחרי השליפה)
+          // נעשה זאת בהוק הראשי (ראה למטה)
+        }
       } catch {}
     }
     setProducts(arr);
   }, [supplierId]);
+
+  // אחרי שנטען הספק מה-db, נטען מוצרים לפי שם אם לא נמצא לפי id
+  React.useEffect(() => {
+    if (!supplier || products.length > 0) return;
+    // לנסות שוב לפי שם
+    const barcodeDb = localStorage.getItem("barcodeDatabase");
+    if (barcodeDb && supplier?.name) {
+      try {
+        const parsed = JSON.parse(barcodeDb);
+        const arrByName = Object.values(parsed).filter(
+          (prod: any) =>
+            prod.supplier === supplier.name ||
+            prod.supplier_name === supplier.name
+        );
+        if (arrByName.length > 0) setProducts(arrByName);
+      } catch {}
+    }
+  }, [supplier, products.length]);
 
   return { supplier, setSupplier, products, loading };
 }
