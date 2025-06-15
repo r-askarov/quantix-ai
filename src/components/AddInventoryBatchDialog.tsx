@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -37,23 +38,23 @@ export default function AddInventoryBatchDialog({ onAdded }: Props) {
      * we force-cast the supabase client and data to 'any'.
      * TODO: Remove casts after types are regenerated.
      */
-    const { data: existing } = (await (supabase
-      .from("inventory_batches") as any)
+    const { data: existing } = (await ((supabase as any)
+      .from("inventory_batches")
       .select("*")
       .eq("barcode", form.barcode)
       .eq("expiry_date", form.expiry_date || null)
-      .maybeSingle()) as { data: InventoryBatch | null };
+      .maybeSingle())) as { data: InventoryBatch | null };
 
     if (existing && existing.id) {
       // עדכן כמות קיימת
-      await (supabase
-        .from("inventory_batches") as any)
+      await ((supabase as any)
+        .from("inventory_batches")
         .update({
           quantity: Number(existing.quantity) + Number(form.quantity),
           supplier: form.supplier || existing.supplier,
           unit_price: form.unit_price ? Number(form.unit_price) : existing.unit_price,
         })
-        .eq("id", existing.id);
+        .eq("id", existing.id));
 
       setLoading(false);
       setOpen(false);
@@ -63,7 +64,7 @@ export default function AddInventoryBatchDialog({ onAdded }: Props) {
     }
 
     // יצירת batch חדש
-    await (supabase.from("inventory_batches") as any).insert([
+    await ((supabase as any).from("inventory_batches").insert([
       {
         barcode: form.barcode,
         product_name: form.product_name,
@@ -72,7 +73,7 @@ export default function AddInventoryBatchDialog({ onAdded }: Props) {
         supplier: form.supplier,
         unit_price: form.unit_price ? Number(form.unit_price) : 0,
       }
-    ]);
+    ]));
     setLoading(false);
     setOpen(false);
     onAdded?.();
@@ -126,3 +127,4 @@ export default function AddInventoryBatchDialog({ onAdded }: Props) {
     </Dialog>
   );
 }
+

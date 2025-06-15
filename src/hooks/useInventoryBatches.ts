@@ -1,3 +1,4 @@
+
 // טען את האצוות מהדטה בייס (עם טיפוס any ל-support זמני)
 import * as React from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,8 +19,8 @@ export function useInventoryBatches() {
      * we must explicitly cast the query and results to 'any'.
      * TODO: After types are regenerated, remove these casts and update types properly.
      */
-    const { data } = (await (supabase
-      .from("inventory_batches") as any)
+    const { data } = await ((supabase as any)
+      .from("inventory_batches")
       .select("*")
       .order("product_name")
       .order("expiry_date", { ascending: true }));
