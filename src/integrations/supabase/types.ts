@@ -47,6 +47,42 @@ export type Database = {
           },
         ]
       }
+      inventory_batches: {
+        Row: {
+          barcode: string
+          created_at: string
+          expiry_date: string | null
+          id: string
+          product_name: string
+          quantity: number
+          received_at: string
+          supplier: string | null
+          unit_price: number
+        }
+        Insert: {
+          barcode: string
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          product_name: string
+          quantity?: number
+          received_at?: string
+          supplier?: string | null
+          unit_price?: number
+        }
+        Update: {
+          barcode?: string
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          product_name?: string
+          quantity?: number
+          received_at?: string
+          supplier?: string | null
+          unit_price?: number
+        }
+        Relationships: []
+      }
       purchase_order_items: {
         Row: {
           created_at: string
