@@ -1,263 +1,113 @@
-
 import * as React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Plus, ScanLine } from "lucide-react";
-import BarcodeScannerDialog from "./BarcodeScannerDialog";
-import { BarcodeDatabase } from "./ExcelImportDialog";
+import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
 
-export interface Product {
-  barcode: string;
-  name: string;
-  quantity: number;
-  supplier: string;
-  minStock: number;
+import { Product } from "@/pages/Products";
+
+// טעינה של DatePicker עדין - ניתן לעטוף ב-Input במידת הצורך
+function DateInput({ value, onChange }: { value: string | null; onChange: (val: string | null) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="date"
+        className="border rounded px-2 py-1"
+        value={value ? value.slice(0, 10) : ""}
+        onChange={e => onChange(e.target.value ? e.target.value : null)}
+        min={new Date().toISOString().slice(0, 10)}
+      />
+      <CalendarIcon className="w-4 h-4 text-gray-500" />
+    </div>
+  );
 }
 
-interface EnhancedAddProductDialogProps {
-  onAdd: (product: Product) => void;
-  barcodeDatabase: BarcodeDatabase;
-}
-
-const EnhancedAddProductDialog: React.FC<EnhancedAddProductDialogProps> = ({ onAdd, barcodeDatabase }) => {
-  const [open, setOpen] = React.useState(false);
-  const [scannerOpen, setScannerOpen] = React.useState(false);
-  const [formData, setFormData] = React.useState({
+// props: תומך ב-onAdd (עם expiryDate) ו-barcodeDatabase
+const EnhancedAddProductDialog = ({ onAdd, barcodeDatabase }: { onAdd: (product: Product) => void, barcodeDatabase: any }) => {
+  const [open, setOpen] = useState(false);
+  const [product, setProduct] = useState<Partial<Product>>({
     barcode: "",
     name: "",
-    quantity: 1,
     supplier: "",
-    minStock: 5,
+    minStock: 1,
+    price: 0,
+    quantity: 0,
+    expiryDate: null,
   });
 
-  // חיפוש במאגר הברקודים
-  const searchBarcode = (barcode: string) => {
-    if (!barcode.trim()) return;
-    
-    console.log("=== SEARCHING BARCODE ===");
-    console.log("Searching barcode:", barcode);
-    console.log("Barcode type:", typeof barcode);
-    console.log("Database keys count:", Object.keys(barcodeDatabase).length);
-    console.log("First 5 database keys:", Object.keys(barcodeDatabase).slice(0, 5));
-    
-    // נסיון חיפוש ישיר
-    let productInfo = barcodeDatabase[barcode];
-    console.log("Direct search result:", productInfo);
-    
-    // אם לא נמצא, ננסה להמיר למחרוזת
-    if (!productInfo) {
-      const barcodeStr = String(barcode).trim();
-      productInfo = barcodeDatabase[barcodeStr];
-      console.log("String search result:", productInfo);
-    }
-    
-    // אם עדיין לא נמצא, ננסה לחפש בכל המפתחות
-    if (!productInfo) {
-      console.log("Trying to find exact match in all keys...");
-      const foundKey = Object.keys(barcodeDatabase).find(key => {
-        const keyMatch = key === barcode || key === String(barcode).trim();
-        if (keyMatch) {
-          console.log(`Found exact match: "${key}" matches "${barcode}"`);
-        }
-        return keyMatch;
-      });
-      
-      if (foundKey) {
-        productInfo = barcodeDatabase[foundKey];
-        console.log("Found via key search:", productInfo);
-      }
-    }
-    
-    if (productInfo) {
-      console.log("=== PRODUCT FOUND ===");
-      console.log("Product data:", productInfo);
-      console.log("Product name:", productInfo.name);
-      console.log("Product supplier:", productInfo.supplier);
-      console.log("Product minStock:", productInfo.minStock);
-      
-      setFormData(prev => ({
-        ...prev,
-        name: productInfo.name || "",
-        supplier: productInfo.supplier || "",
-        minStock: productInfo.minStock || prev.minStock,
-      }));
-      
-      toast({
-        title: "מוצר זוהה במאגר!",
-        description: `נמצא מוצר: ${productInfo.name}`,
-      });
-    } else {
-      console.log("=== PRODUCT NOT FOUND ===");
-      console.log("No product found for barcode:", barcode);
-      
-      // איפוס שדות אם לא נמצא מוצר
-      setFormData(prev => ({
-        ...prev,
-        name: "",
-        supplier: "",
-        minStock: 5,
-      }));
-    }
-  };
-
-  const handleBarcodeDetected = (detectedBarcode: string) => {
-    console.log("Barcode detected from scanner:", detectedBarcode);
-    
-    setFormData(prev => ({
+  // עבור קלט expiryDate
+  const handleExpiryDateChange = (val: string | null) => {
+    setProduct(prev => ({
       ...prev,
-      barcode: detectedBarcode,
+      expiryDate: val,
     }));
-    
-    searchBarcode(detectedBarcode);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.barcode || !formData.name) {
-      toast({
-        title: "שגיאה",
-        description: "אנא מלא את כל השדות הנדרשים",
-        variant: "destructive",
-      });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setProduct(prev => ({
+      ...prev,
+      [e.target.name]:
+        e.target.type === "number" ? Number(e.target.value) : e.target.value,
+    }));
+  };
+
+  const handleSubmit = () => {
+    if (!product.barcode || !product.name || !product.supplier || !product.quantity || !product.price) {
+      toast({ title: "נא למלא את כל השדות החובה!", variant: "destructive" });
       return;
     }
-
-    const product: Product = {
-      barcode: formData.barcode,
-      name: formData.name,
-      quantity: formData.quantity,
-      supplier: formData.supplier,
-      minStock: formData.minStock,
+    const toAdd: Product = {
+      barcode: product.barcode!,
+      name: product.name!,
+      supplier: product.supplier!,
+      minStock: Number(product.minStock) || 1,
+      price: Number(product.price) || 0,
+      quantity: Number(product.quantity) || 0,
+      expiryDate: product.expiryDate ?? null,
     };
-
-    onAdd(product);
-    setFormData({
+    onAdd(toAdd);
+    setOpen(false);
+    setProduct({
       barcode: "",
       name: "",
-      quantity: 1,
       supplier: "",
-      minStock: 5,
+      minStock: 1,
+      price: 0,
+      quantity: 0,
+      expiryDate: null,
     });
-    setOpen(false);
-  };
-
-  const handleInputChange = (field: keyof typeof formData, value: string | number) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-    }));
-    
-    // אם השדה הוא ברקוד, חפש במאגר
-    if (field === "barcode" && typeof value === "string") {
-      console.log("Input change triggered search for:", value);
-      searchBarcode(value);
-    }
   };
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            הוסף מוצר
-          </Button>
-        </DialogTrigger>
-        <DialogContent dir="rtl">
-          <DialogHeader>
-            <DialogTitle>הוספת מוצר חדש</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Label htmlFor="barcode">ברקוד *</Label>
-                <Input
-                  id="barcode"
-                  value={formData.barcode}
-                  onChange={(e) => handleInputChange("barcode", e.target.value)}
-                  placeholder="הכנס ברקוד או סרוק"
-                  required
-                />
-              </div>
-              <div className="flex items-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setScannerOpen(true)}
-                  className="h-10"
-                >
-                  <ScanLine className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="name">שם המוצר *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                placeholder="הכנס שם מוצר"
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="quantity">כמות</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="1"
-                value={formData.quantity}
-                onChange={(e) => handleInputChange("quantity", parseInt(e.target.value) || 1)}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="supplier">ספק</Label>
-              <Input
-                id="supplier"
-                value={formData.supplier}
-                onChange={(e) => handleInputChange("supplier", e.target.value)}
-                placeholder="הכנס שם ספק"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="minStock">מלאי מינימום</Label>
-              <Input
-                id="minStock"
-                type="number"
-                min="0"
-                value={formData.minStock}
-                onChange={(e) => handleInputChange("minStock", parseInt(e.target.value) || 0)}
-                required
-              />
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                ביטול
-              </Button>
-              <Button type="submit">
-                הוסף מוצר
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <BarcodeScannerDialog
-        open={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onDetected={handleBarcodeDetected}
-      />
-    </>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="default">הוסף מוצר חדש</Button>
+      </DialogTrigger>
+      <DialogContent dir="rtl">
+        <DialogHeader>
+          <DialogTitle>הוספת מוצר חדש</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          <Input placeholder="ברקוד" name="barcode" value={product.barcode || ""} onChange={handleChange} />
+          <Input placeholder="שם מוצר" name="name" value={product.name || ""} onChange={handleChange} />
+          <Input placeholder="ספק" name="supplier" value={product.supplier || ""} onChange={handleChange} />
+          <Input type="number" min={0} placeholder="כמות התחלתית" name="quantity" value={product.quantity || ""} onChange={handleChange} />
+          <Input type="number" min={1} placeholder="מלאי מינימום (התראה)" name="minStock" value={product.minStock || ""} onChange={handleChange} />
+          <Input type="number" min={0} placeholder="מחיר ליחידה" name="price" value={product.price || ""} onChange={handleChange} />
+          {/* שדה תאריך תפוגה אופציונלי */}
+          <div>
+            <label className="block text-right text-xs mb-1">תאריך תפוגה (רשות)</label>
+            <DateInput value={product.expiryDate || null} onChange={handleExpiryDateChange} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleSubmit}>הוסף</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

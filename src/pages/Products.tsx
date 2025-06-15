@@ -23,7 +23,7 @@ export interface Product {
   supplier: string;
   minStock: number;
   price: number;
-  expiryDate?: string | null; // New field (ISO date string or null)
+  expiryDate?: string | null; // נשמר, כבר קיים
 }
 
 const initialProducts: Product[] = [
@@ -271,11 +271,12 @@ const Products = () => {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-end justify-between mb-5 gap-2">
-        <div className="flex-1 flex gap-2">
+      {/* הסר את כפתור הוספת אצווה */}
+      {/* <div className="flex-1 flex gap-2">
           <AddInventoryBatchDialog onAdded={reload} />
-        </div>
-      </div>
+      </div> */}
+      {/* במקום זאת השאר ריק או השאר את ה-div בלי תוכן */}
+      <div className="flex flex-col sm:flex-row items-end justify-between mb-5 gap-2" />
 
       {/* טבלה מאוחדת בלבד */}
       <div className="my-6">
