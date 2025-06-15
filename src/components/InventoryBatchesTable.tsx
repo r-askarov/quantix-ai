@@ -9,6 +9,11 @@ interface Props {
 }
 
 export default function InventoryBatchesTable({ batches }: Props) {
+  // שליחת בקשת פיפו בכל רינדור (מומלץ לשלוח ב-useEffect)
+  React.useEffect(() => {
+    fetch("/api/pipu").catch(() => {});
+  }, []);
+
   return (
     <div className="overflow-x-auto rounded-md border bg-card shadow">
       <Table>
@@ -19,7 +24,7 @@ export default function InventoryBatchesTable({ batches }: Props) {
             <TableHead>תוקף</TableHead>
             <TableHead>כמות</TableHead>
             <TableHead>ספק</TableHead>
-            <TableHead>תאריך קבלה</TableHead>
+            <TableHead>תאריך תפוגה</TableHead>
             <TableHead>מחיר יח'</TableHead>
           </TableRow>
         </TableHeader>
@@ -38,7 +43,10 @@ export default function InventoryBatchesTable({ batches }: Props) {
                 </TableCell>
                 <TableCell>{batch.quantity}</TableCell>
                 <TableCell>{batch.supplier || ""}</TableCell>
-                <TableCell>{batch.received_at ? format(new Date(batch.received_at), "dd/MM/yyyy") : ""}</TableCell>
+                {/* תאריך תפוגה במקום קבלה */}
+                <TableCell>
+                  {batch.expiry_date ? format(new Date(batch.expiry_date), "dd/MM/yyyy") : ""}
+                </TableCell>
                 <TableCell>{Number(batch.unit_price).toLocaleString("he-IL")} ₪</TableCell>
               </TableRow>
             ))
