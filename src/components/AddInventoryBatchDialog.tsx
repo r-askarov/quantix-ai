@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { InventoryBatch } from "@/types/inventory";
 
 interface Props {
   onAdded: () => void;
@@ -32,17 +32,22 @@ export default function AddInventoryBatchDialog({ onAdded }: Props) {
     setLoading(true);
 
     // חפש אם כבר קיים batch זהה ברקוד + expiry_date
-    const { data: existing, error } = await supabase
-      .from<any>("inventory_batches")
+    /**
+     * Because inventory_batches is NOT in Supabase types yet,
+     * we force-cast the supabase client and data to 'any'.
+     * TODO: Remove casts after types are regenerated.
+     */
+    const { data: existing } = (await (supabase
+      .from("inventory_batches") as any)
       .select("*")
       .eq("barcode", form.barcode)
       .eq("expiry_date", form.expiry_date || null)
-      .maybeSingle();
+      .maybeSingle()) as { data: InventoryBatch | null };
 
     if (existing && existing.id) {
       // עדכן כמות קיימת
-      await supabase
-        .from<any>("inventory_batches")
+      await (supabase
+        .from("inventory_batches") as any)
         .update({
           quantity: Number(existing.quantity) + Number(form.quantity),
           supplier: form.supplier || existing.supplier,
@@ -58,7 +63,7 @@ export default function AddInventoryBatchDialog({ onAdded }: Props) {
     }
 
     // יצירת batch חדש
-    await supabase.from<any>("inventory_batches").insert([
+    await (supabase.from("inventory_batches") as any).insert([
       {
         barcode: form.barcode,
         product_name: form.product_name,

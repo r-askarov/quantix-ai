@@ -1,4 +1,3 @@
-
 // טען את האצוות מהדטה בייס (עם טיפוס any ל-support זמני)
 import * as React from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,14 +13,19 @@ export function useInventoryBatches() {
   // טען את האצוות מהדטה בייס
   const fetchBatches = async () => {
     setLoading(true);
-    // טיפוס any כדי לעקוף את בעיית השדות שלא קיימים בסוגים הגנריים כרגע
-    const { data, error } = await supabase
-      .from<any>("inventory_batches")
+    /**
+     * Because inventory_batches is NOT in the generated Supabase types yet,
+     * we must explicitly cast the query and results to 'any'.
+     * TODO: After types are regenerated, remove these casts and update types properly.
+     */
+    const { data } = (await (supabase
+      .from("inventory_batches") as any)
       .select("*")
       .order("product_name")
-      .order("expiry_date", { ascending: true });
+      .order("expiry_date", { ascending: true }));
 
-    if (data) setBatches(data);
+    // Explicitly cast to InventoryBatch[]
+    if (data) setBatches(data as InventoryBatch[]);
     setLoading(false);
   };
 
