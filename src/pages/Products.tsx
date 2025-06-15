@@ -38,6 +38,7 @@ type SortOrder = "asc" | "desc";
 
 import { useInventoryBatches } from "@/hooks/useInventoryBatches";
 import AddInventoryBatchDialog from "@/components/AddInventoryBatchDialog";
+import { InventoryBatch } from "@/types/inventory"; // <-- Fix: add inventory type import
 
 const Products = () => {
   const [products, setProducts] = React.useState<Product[]>(initialProducts);
