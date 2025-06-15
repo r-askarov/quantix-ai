@@ -14,38 +14,47 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Toggle } from "@/components/ui/toggle";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, RotateCcw } from "lucide-react"; // use RotateCcw instead of Reset
+import { ChevronDown, RotateCcw, ArrowDown, ArrowUp } from "lucide-react";
 
 const initialProducts: Product[] = [
-  { barcode: "7290001234567", name: "מברגה בוש", quantity: 13, supplier: "חשמל יצחק", minStock: 5 },
-  { barcode: "7290009876541", name: "סרט מדידה 5 מטר", quantity: 34, supplier: "י.א. בניה", minStock: 10 },
-  { barcode: "7290001122445", name: "פלייר מקצועי", quantity: 28, supplier: "כלי-ברזל בע\"מ", minStock: 10 },
-  { barcode: "7290009988776", name: "מברשת צבע", quantity: 56, supplier: "ספק מבנים", minStock: 15 },
-  { barcode: "7290008765432", name: "מסור ידני", quantity: 2, supplier: "כלי-ברזל בע\"מ", minStock: 2 },
+  { barcode: "7290001234567", name: "מברגה בוש", quantity: 13, supplier: "חשמל יצחק", minStock: 5, price: 349 },
+  { barcode: "7290009876541", name: "סרט מדידה 5 מטר", quantity: 34, supplier: "י.א. בניה", minStock: 10, price: 29 },
+  { barcode: "7290001122445", name: "פלייר מקצועי", quantity: 28, supplier: "כלי-ברזל בע\"מ", minStock: 10, price: 55 },
+  { barcode: "7290009988776", name: "מברשת צבע", quantity: 56, supplier: "ספק מבנים", minStock: 15, price: 19 },
+  { barcode: "7290008765432", name: "מסור ידני", quantity: 2, supplier: "כלי-ברזל בע\"מ", minStock: 2, price: 99 },
 ];
+
+type SortOrder = "asc" | "desc";
 
 const Products = () => {
   const [products, setProducts] = React.useState<Product[]>(initialProducts);
   const [barcodeDatabase, setBarcodeDatabase] = React.useState<BarcodeDatabase>({});
 
-  // --- פילטרים ---
+  // פילטרים
   const [supplierFilter, setSupplierFilter] = React.useState<string | null>(null);
   const [lowStockOnly, setLowStockOnly] = React.useState(false);
+  const [quantitySort, setQuantitySort] = React.useState<SortOrder | null>(null);
 
-  // הפקת רשימת ספקים ייחודיים
+  // ספקים ייחודיים
   const uniqueSuppliers = React.useMemo(() => {
     return Array.from(new Set(products.map((p) => p.supplier).filter(Boolean)));
   }, [products]);
 
-  // החלת סינון על הרשימה
+  // החלת סינונים ומיון
   const filteredProducts = React.useMemo(() => {
     let filtered = [...products];
     if (supplierFilter) filtered = filtered.filter(p => p.supplier === supplierFilter);
     if (lowStockOnly) filtered = filtered.filter(p => p.quantity <= p.minStock);
+    if (quantitySort) {
+      filtered.sort((a, b) =>
+        quantitySort === "asc"
+          ? a.quantity - b.quantity
+          : b.quantity - a.quantity
+      );
+    }
     return filtered;
-  }, [products, supplierFilter, lowStockOnly]);
+  }, [products, supplierFilter, lowStockOnly, quantitySort]);
 
-  // טעינת מאגר ברקודים מ-localStorage בעת הטעינה הראשונה
   React.useEffect(() => {
     const savedDatabase = localStorage.getItem('barcodeDatabase');
     if (savedDatabase) {
@@ -59,7 +68,6 @@ const Products = () => {
     }
   }, []);
 
-  // בעת טעינה: לייצר התראה אחת עם רשימת מוצרים נמוכים מהמינימום
   React.useEffect(() => {
     const lowStockProducts = products.filter((p) => p.quantity <= p.minStock);
     if (lowStockProducts.length > 0) {
@@ -87,6 +95,7 @@ const Products = () => {
         updatedProducts[existingProductIndex] = {
           ...updatedProducts[existingProductIndex],
           quantity: updatedProducts[existingProductIndex].quantity + product.quantity,
+          price: product.price, // עדכון מחיר במקרה ועדכנו אותו
         };
         toast({
           title: "המוצר עודכן בהצלחה!",
@@ -110,10 +119,17 @@ const Products = () => {
     });
   };
 
-  // איפוס כל הסינונים
   const handleResetFilters = () => {
     setSupplierFilter(null);
     setLowStockOnly(false);
+    setQuantitySort(null);
+  };
+
+  // שינוי סדר
+  const toggleQuantitySort = () => {
+    setQuantitySort(order =>
+      order === "desc" ? "asc" : order === "asc" ? null : "desc"
+    );
   };
 
   return (
@@ -121,6 +137,7 @@ const Products = () => {
       {/* טולבר עם סינונים */}
       <div className="sticky top-0 z-20 bg-background pb-4 mb-6 flex flex-col-reverse items-stretch gap-2 sm:gap-0 sm:flex-row sm:items-end sm:justify-between border-b">
         <div className="flex flex-wrap gap-2 items-center">
+
           {/* פילטר לפי ספק */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -149,7 +166,7 @@ const Products = () => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* פילטר מלאי נמוך (טוגל) */}
+          {/* פילטר מלאי נמוך */}
           <Toggle
             pressed={lowStockOnly}
             size="sm"
@@ -160,15 +177,31 @@ const Products = () => {
             מלאי נמוך
           </Toggle>
 
+          {/* מיון לפי כמות */}
+          <Button
+            onClick={toggleQuantitySort}
+            variant={quantitySort ? "outline" : "ghost"}
+            size="sm"
+            className="min-w-[110px] flex items-center gap-1"
+            title="מיון לפי כמות"
+          >
+            כמות
+            {quantitySort === "desc" && <ArrowDown className="w-4 h-4" />}
+            {quantitySort === "asc" && <ArrowUp className="w-4 h-4" />}
+            {!quantitySort && (
+              <span className="text-muted-foreground">(ללא)</span>
+            )}
+          </Button>
+
           {/* איפוס סינון */}
           <Button
             onClick={handleResetFilters}
             variant="ghost"
             size="sm"
-            className="text-xs" 
+            className="text-xs"
             title="איפוס סינון"
           >
-            <RotateCcw className="w-4 h-4 mr-1" /> {/* Changed from Reset to RotateCcw */}
+            <RotateCcw className="w-4 h-4 mr-1" />
             איפוס סינון
           </Button>
         </div>
@@ -189,4 +222,3 @@ const Products = () => {
 };
 
 export default Products;
-

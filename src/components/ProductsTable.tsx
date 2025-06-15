@@ -18,12 +18,13 @@ const ProductsTable: React.FC<ProductsTableProps> = ({ products }) => {
             <TableHead className="text-right">כמות</TableHead>
             <TableHead className="text-right">ספק</TableHead>
             <TableHead className="text-right">מלאי מינימום</TableHead>
+            <TableHead className="text-right">מחיר</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {products.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+              <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                 לא נמצאו מוצרים.
               </TableCell>
             </TableRow>
@@ -39,6 +40,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({ products }) => {
                   </TableCell>
                   <TableCell>{p.supplier}</TableCell>
                   <TableCell>{p.minStock}</TableCell>
+                  <TableCell>{typeof p.price === "number" ? p.price + " ₪" : "-"}</TableCell>
                 </TableRow>
               );
             })
