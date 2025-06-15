@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Minus, Search, Save, Send } from "lucide-react";
+import { Plus, Minus, Search, Save, Send, Package } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { he } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -225,43 +224,58 @@ const ProductSelectionOrderDialog: React.FC<ProductSelectionOrderDialogProps> = 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent dir="rtl" className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent dir="rtl" className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>בחירת מוצרים להזמנה - {supplierName}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Package className="w-5 h-5" />
+            בחירת מוצרים להזמנה - {supplierName}
+          </DialogTitle>
         </DialogHeader>
         
         <div className="flex-1 overflow-hidden flex flex-col space-y-4">
           {/* כלי סינון וחיפוש */}
-          <div className="flex gap-4">
+          <div className="flex gap-4 items-center">
             <div className="flex-1 relative">
               <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="חיפוש מוצר..."
+                placeholder="חיפוש מוצר לפי שם או ברקוד..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pr-10"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              {filteredProducts.length} מוצרים
+            </div>
+          </div>
+
+          {/* סינון קטגוריות */}
+          {categories.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-2">
               <Button
                 variant={selectedCategory === null ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSelectedCategory(null)}
+                className="whitespace-nowrap"
               >
-                הכל
+                הכל ({supplierProducts.length})
               </Button>
-              {categories.map(category => (
-                <Button
-                  key={category}
-                  variant={selectedCategory === category ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedCategory(category)}
-                >
-                  {category}
-                </Button>
-              ))}
+              {categories.map(category => {
+                const categoryCount = supplierProducts.filter(p => p.category === category).length;
+                return (
+                  <Button
+                    key={category}
+                    variant={selectedCategory === category ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedCategory(category)}
+                    className="whitespace-nowrap"
+                  >
+                    {category} ({categoryCount})
+                  </Button>
+                );
+              })}
             </div>
-          </div>
+          )}
 
           {/* סיכום הזמנה */}
           {totalItems > 0 && (
@@ -281,86 +295,124 @@ const ProductSelectionOrderDialog: React.FC<ProductSelectionOrderDialogProps> = 
             </div>
           )}
 
-          {/* רשימת מוצרים */}
-          <ScrollArea className="flex-1 border rounded-lg">
-            <div className="p-4 space-y-3">
+          {/* רשימת מוצרים עם גלילה משופרת */}
+          <ScrollArea className="flex-1 border rounded-lg min-h-[400px]">
+            <div className="p-4">
               {filteredProducts.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  לא נמצאו מוצרים העונים לקריטריונים
+                <div className="text-center py-12 text-muted-foreground">
+                  <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <div className="text-lg font-medium mb-2">
+                    {supplierProducts.length === 0 
+                      ? "אין מוצרים עבור ספק זה"
+                      : "לא נמצאו מוצרים"
+                    }
+                  </div>
+                  <div className="text-sm">
+                    {searchTerm || selectedCategory 
+                      ? "נסה לשנות את קריטריוני החיפוש או הסינון"
+                      : "הוסף מוצרים למאגר הברקודים עבור ספק זה"
+                    }
+                  </div>
                 </div>
               ) : (
-                filteredProducts.map((product) => {
-                  const currentQuantity = orderItems[product.barcode]?.ordered_quantity || 0;
-                  
-                  return (
-                    <div key={product.barcode} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex-1">
-                          <h3 className="font-semibold">{product.name}</h3>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span>ברקוד: {product.barcode}</span>
-                            {product.unitPrice && (
-                              <span>מחיר: ₪{product.unitPrice}</span>
-                            )}
-                            {product.category && (
-                              <Badge variant="outline">{product.category}</Badge>
-                            )}
+                <div className="space-y-4">
+                  {filteredProducts.map((product, index) => {
+                    const currentQuantity = orderItems[product.barcode]?.ordered_quantity || 0;
+                    
+                    return (
+                      <div 
+                        key={product.barcode} 
+                        className={`border rounded-lg p-4 transition-all duration-200 hover:shadow-md ${
+                          currentQuantity > 0 ? 'border-green-300 bg-green-50' : 'border-border'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-lg mb-1">{product.name}</h3>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <span className="font-mono">ברקוד: {product.barcode}</span>
+                              {product.unitPrice && (
+                                <span className="font-medium text-green-600">
+                                  מחיר: ₪{product.unitPrice}
+                                </span>
+                              )}
+                              {product.category && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {product.category}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateQuantity(product.barcode, product, currentQuantity - 1)}
+                              disabled={currentQuantity <= 0}
+                              className="w-10 h-10 p-0"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </Button>
+                            <div className="w-16 text-center">
+                              <span className="text-lg font-bold text-primary">
+                                {currentQuantity}
+                              </span>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateQuantity(product.barcode, product, currentQuantity + 1)}
+                              className="w-10 h-10 p-0"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateQuantity(product.barcode, product, currentQuantity - 1)}
-                            disabled={currentQuantity <= 0}
-                          >
-                            <Minus className="w-4 h-4" />
-                          </Button>
-                          <span className="w-8 text-center font-medium">
-                            {currentQuantity}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateQuantity(product.barcode, product, currentQuantity + 1)}
-                          >
-                            <Plus className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        
+                        {currentQuantity > 0 && (
+                          <div className="mt-3 pt-3 border-t border-green-200">
+                            <Label className="text-sm font-medium mb-2 block">
+                              הערה למוצר זה:
+                            </Label>
+                            <Input
+                              placeholder="הערות אופציונליות עבור מוצר זה..."
+                              value={orderItems[product.barcode]?.notes || ""}
+                              onChange={(e) => updateItemNotes(product.barcode, e.target.value)}
+                              className="bg-white"
+                            />
+                          </div>
+                        )}
                       </div>
-                      
-                      {currentQuantity > 0 && (
-                        <div className="mt-2">
-                          <Label className="text-sm">הערה למוצר זה:</Label>
-                          <Input
-                            placeholder="הערות אופציונליות..."
-                            value={orderItems[product.barcode]?.notes || ""}
-                            onChange={(e) => updateItemNotes(product.barcode, e.target.value)}
-                            className="mt-1"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                  
+                  {/* אינדיקטור סוף הרשימה */}
+                  <div className="text-center py-4 text-sm text-muted-foreground border-t">
+                    הצגת {filteredProducts.length} מוצרים
+                    {searchTerm || selectedCategory ? (
+                      <span> (מתוך {supplierProducts.length} סה"כ)</span>
+                    ) : null}
+                  </div>
+                </div>
               )}
             </div>
           </ScrollArea>
 
           {/* הערות כלליות */}
           <div className="space-y-2">
-            <Label htmlFor="notes">הערות כלליות להזמנה</Label>
+            <Label htmlFor="notes" className="font-medium">הערות כלליות להזמנה</Label>
             <Textarea
               id="notes"
               value={globalNotes}
               onChange={(e) => setGlobalNotes(e.target.value)}
-              placeholder="הערות נוספות להזמנה"
+              placeholder="הערות נוספות, בקשות מיוחדות או הוראות משלוח..."
               rows={3}
+              className="resize-none"
             />
           </div>
         </div>
         
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 pt-4 border-t">
           <Button variant="secondary" onClick={handleClose}>
             ביטול
           </Button>
@@ -368,15 +420,17 @@ const ProductSelectionOrderDialog: React.FC<ProductSelectionOrderDialogProps> = 
             variant="outline"
             onClick={() => createOrderMutation.mutate({ isDraft: true })}
             disabled={createOrderMutation.isPending || totalItems === 0}
+            className="gap-2"
           >
-            <Save className="w-4 h-4 ml-1" />
+            <Save className="w-4 h-4" />
             שמור טיוטה
           </Button>
           <Button 
             onClick={() => createOrderMutation.mutate({ isDraft: false })}
             disabled={createOrderMutation.isPending || totalItems === 0}
+            className="bg-green-600 hover:bg-green-700 gap-2"
           >
-            <Send className="w-4 h-4 ml-1" />
+            <Send className="w-4 h-4" />
             שלח הזמנה
           </Button>
         </DialogFooter>
