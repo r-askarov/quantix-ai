@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -94,6 +93,17 @@ const SupplierDetails: React.FC = () => {
   const [saving, setSaving] = React.useState(false);
   const [editMode, setEditMode] = React.useState(false);
   const [message, setMessage] = React.useState<string | null>(null);
+
+  // מצב לעמוד הנוכחי ברשימת המוצרים
+  const [productsPage, setProductsPage] = React.useState(0);
+  const PRODUCTS_PER_PAGE = 10;
+
+  // חישוב מוצרים להצגה בדף הנוכחי
+  const paginatedProducts = products.slice(
+    productsPage * PRODUCTS_PER_PAGE,
+    (productsPage + 1) * PRODUCTS_PER_PAGE
+  );
+  const pageCount = Math.ceil(products.length / PRODUCTS_PER_PAGE);
 
   React.useEffect(() => {
     if (supplier) {
@@ -240,7 +250,7 @@ const SupplierDetails: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map(prod => (
+                  {paginatedProducts.map(prod => (
                     <tr key={prod.barcode}>
                       <td className="py-1 px-3 border">{prod.name}</td>
                       <td className="py-1 px-3 border font-mono">{prod.barcode}</td>
@@ -250,6 +260,28 @@ const SupplierDetails: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              {/* ניווט דפים */}
+              {pageCount > 1 && (
+                <div className="flex justify-center mt-4 gap-2 items-center">
+                  <button
+                    className="px-3 py-1 rounded border bg-white enabled:hover:bg-muted text-xs disabled:opacity-40"
+                    onClick={() => setProductsPage(p => p - 1)}
+                    disabled={productsPage === 0}
+                  >
+                    הקודם
+                  </button>
+                  <span className="text-xs font-medium mx-2">
+                    עמוד {productsPage + 1} מתוך {pageCount}
+                  </span>
+                  <button
+                    className="px-3 py-1 rounded border bg-white enabled:hover:bg-muted text-xs disabled:opacity-40"
+                    onClick={() => setProductsPage(p => p + 1)}
+                    disabled={productsPage >= pageCount - 1}
+                  >
+                    הבא
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -268,4 +300,3 @@ const SupplierDetails: React.FC = () => {
 };
 
 export default SupplierDetails;
-
