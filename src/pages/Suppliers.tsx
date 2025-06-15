@@ -64,22 +64,9 @@ const Suppliers = () => {
   };
 
   const handleViewSupplier = (supplierName: string) => {
-    // ניווט לכתובת עם מזהה/שם הספק
-    const selectedSupplier = Object.values(barcodeDatabase).find(
-      p => p.supplier && p.supplier.trim() === supplierName
-    );
-    // אם יש ערך מזהה מסופאבייס, נשתמש בו, אחרת לפי שם
-    let supplierId = undefined;
-    if (selectedSupplier && selectedSupplier.supplier_id) {
-      supplierId = selectedSupplier.supplier_id;
-    }
-    // ננווט או לפי שם הספק (אם אין מזהה) או לפי id
-    if (supplierId) {
-      window.location.href = `/suppliers/${supplierId}`;
-    } else {
-      // fallback: ניווט לפי שם
-      window.location.href = `/suppliers/${encodeURIComponent(supplierName)}`;
-    }
+    // ניווט לכתובת של הספק לפי שם בלבד, כי אין supplier_id במודל זה
+    window.location.href = `/suppliers/${encodeURIComponent(supplierName)}`;
+    // TODO: בעתיד, אם יהיה לכל ספק מזהה ייחודי (supplier_id), ננווט לפי מזהה ולא לפי שם.
   };
 
   return (
