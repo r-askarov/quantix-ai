@@ -4,6 +4,8 @@ import SupplierCard from "@/components/SupplierCard";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/components/ui/use-toast";
 
 interface BarcodeProduct {
   barcode: string;
@@ -43,6 +45,7 @@ function getSupplierData(supplierName: string) {
 const Suppliers = () => {
   const barcodeDatabase = useBarcodeDatabase();
   const [search, setSearch] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
 
   // שליפת ספקים ייחודיים ממאגר הברקודים בלבד (שם ספק לא ריק)
   const suppliers = React.useMemo(() => {
@@ -63,10 +66,34 @@ const Suppliers = () => {
     alert("פתח הזמנה חדשה ל: " + supplierName);
   };
 
-  const handleViewSupplier = (supplierName: string) => {
-    // ניווט לכתובת של הספק לפי שם בלבד, כי אין supplier_id במודל זה
-    window.location.href = `/suppliers/${encodeURIComponent(supplierName)}`;
-    // TODO: בעתיד, אם יהיה לכל ספק מזהה ייחודי (supplier_id), ננווט לפי מזהה ולא לפי שם.
+  // פונקציה חדשה: קח שם ספק, שלוף את ה-id מ-supabase ונווט לכתובת עם id
+  const handleViewSupplier = async (supplierName: string) => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("suppliers")
+      .select("id")
+      .ilike("name", supplierName.trim())
+      .maybeSingle();
+
+    setLoading(false);
+
+    if (error) {
+      toast({
+        title: "שגיאה",
+        description: "לא ניתן לטעון את פרטי הספק (" + error.message + ")",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (!data?.id) {
+      toast({
+        title: "לא נמצא",
+        description: "לא נמצא ספק בשם " + supplierName,
+        variant: "destructive"
+      });
+      return;
+    }
+    window.location.href = `/suppliers/${data.id}`;
   };
 
   return (
@@ -112,6 +139,13 @@ const Suppliers = () => {
           })
         )}
       </div>
+      {loading && (
+        <div className="fixed inset-0 bg-black/10 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg px-8 py-4 shadow text-center">
+            טוען...
+          </div>
+        </div>
+      )}
     </main>
   );
 };
