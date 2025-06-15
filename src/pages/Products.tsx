@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Link } from "react-router-dom";
 import ProductsTable from "@/components/ProductsTable";
@@ -142,9 +141,14 @@ const Products = () => {
     );
   };
 
+  // חישוב סך שווי המלאי הנצפה ---
+  const totalStockValue = React.useMemo(() => {
+    return filteredProducts.reduce((sum, p) => sum + (typeof p.price === "number" ? p.price * p.quantity : 0), 0);
+  }, [filteredProducts]);
+
   return (
     <main className="min-h-screen bg-background px-2 sm:px-8 py-8">
-      {/* טולבר עם סינונים */}
+      {/* טולבר וסינונים */}
       <div className="sticky top-0 z-20 bg-background pb-4 mb-6 flex flex-col-reverse items-stretch gap-2 sm:gap-0 sm:flex-row sm:items-end sm:justify-between border-b">
         <div className="flex flex-wrap gap-2 items-center">
 
@@ -223,6 +227,12 @@ const Products = () => {
 
       <div className="mt-4">
         <ProductsTable products={filteredProducts} />
+      </div>
+      {/* סכום כולל */}
+      <div className="mt-4 flex items-center justify-end">
+        <div className="bg-muted/60 text-lg font-bold px-4 py-2 rounded shadow border">
+          סך שווי מלאי מוצג: <span className="font-mono">{totalStockValue.toLocaleString("he-IL")}</span> <span className="text-base font-normal text-muted-foreground">₪</span>
+        </div>
       </div>
       <div className="mt-8">
         <Link to="/" className="text-blue-700 underline text-base">חזרה לדשבורד</Link>
