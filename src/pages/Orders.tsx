@@ -5,14 +5,16 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import TodayOrdersBoard from "@/components/TodayOrdersBoard";
 import TodayDeliveriesBoard from "@/components/TodayDeliveriesBoard";
+import AllOrdersTable from "@/components/AllOrdersTable";
 import PurchaseOrderDialog from "@/components/PurchaseOrderDialog";
 import ReceivingDialog from "@/components/ReceivingDialog";
 import OCRShippingDocumentDialog from "@/components/OCRShippingDocumentDialog";
 import ShippingComparisonTable from "@/components/ShippingComparisonTable";
 import SupplierSelectionDialog from "@/components/SupplierSelectionDialog";
 import ProductSelectionOrderDialog from "@/components/ProductSelectionOrderDialog";
+import OrderSummaryDialog from "@/components/OrderSummaryDialog";
 import { Button } from "@/components/ui/button";
-import { Plus, Truck, ClipboardList } from "lucide-react";
+import { Plus, Truck, ClipboardList, Archive } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export interface ShippingItem {
@@ -37,6 +39,7 @@ const Orders = () => {
   const [showProductSelection, setShowProductSelection] = React.useState(false);
   const [showPurchaseOrder, setShowPurchaseOrder] = React.useState(false);
   const [showReceiving, setShowReceiving] = React.useState(false);
+  const [showOrderSummary, setShowOrderSummary] = React.useState(false);
   const [selectedSupplier, setSelectedSupplier] = React.useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = React.useState<string | null>(null);
   const [barcodeDatabase, setBarcodeDatabase] = React.useState<Record<string, BarcodeProduct>>({});
@@ -79,6 +82,11 @@ const Orders = () => {
     setShowProductSelection(true);
   };
 
+  const handleViewOrder = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setShowOrderSummary(true);
+  };
+
   return (
     <main className="min-h-screen bg-background px-8 py-8">
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -99,10 +107,14 @@ const Orders = () => {
       </div>
 
       <Tabs defaultValue="daily-management" dir="rtl">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="daily-management" className="flex items-center gap-2">
             <ClipboardList className="w-4 h-4" />
             ניהול יומי
+          </TabsTrigger>
+          <TabsTrigger value="all-orders" className="flex items-center gap-2">
+            <Archive className="w-4 h-4" />
+            כל ההזמנות
           </TabsTrigger>
           <TabsTrigger value="shipping-documents" className="flex items-center gap-2">
             <Truck className="w-4 h-4" />
@@ -112,10 +124,14 @@ const Orders = () => {
 
         <TabsContent value="daily-management" className="space-y-6 mt-6">
           {/* דשבורד הזמנות שצריך לבצע היום */}
-          <TodayOrdersBoard onCreateOrder={handleCreatePurchaseOrder} />
+          <TodayOrdersBoard onCreateOrder={handleCreatePurchaseOrder} onViewOrder={handleViewOrder} />
           
           {/* דשבורד הזמנות שמיועדות להיקלט היום */}
           <TodayDeliveriesBoard onStartReceiving={handleStartReceiving} />
+        </TabsContent>
+
+        <TabsContent value="all-orders" className="mt-6">
+          <AllOrdersTable onViewOrder={handleViewOrder} />
         </TabsContent>
 
         <TabsContent value="shipping-documents" className="mt-6">
@@ -161,6 +177,12 @@ const Orders = () => {
       <ReceivingDialog
         open={showReceiving}
         onClose={() => setShowReceiving(false)}
+        orderId={selectedOrderId}
+      />
+
+      <OrderSummaryDialog
+        open={showOrderSummary}
+        onClose={() => setShowOrderSummary(false)}
         orderId={selectedOrderId}
       />
     </main>
