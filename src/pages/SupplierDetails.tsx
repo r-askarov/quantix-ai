@@ -4,7 +4,8 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Building2, Phone, Mail } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Mail, Phone, Building2 } from "lucide-react";
 
 const weekdayLabels: Record<string, string> = {
   sunday: "ראשון",
@@ -15,16 +16,17 @@ const weekdayLabels: Record<string, string> = {
   friday: "שישי",
   saturday: "שבת"
 };
+const weekdays = Object.keys(weekdayLabels);
 
 function useSupplierData(supplierId?: string) {
   const [supplier, setSupplier] = React.useState<any>(null);
   const [products, setProducts] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+
   React.useEffect(() => {
     if (!supplierId) return;
     setLoading(true);
 
-    // שליפת פרטי ספק ממסד הנתונים:
     supabase
       .from("suppliers")
       .select("*")
@@ -32,35 +34,51 @@ function useSupplierData(supplierId?: string) {
       .single()
       .then(({ data }) => {
         setSupplier(data);
+        setLoading(false);
       });
 
-    // שליפת מוצרים (מlocalStorage לפי שם הספק)
+    // מוצרים (localStorage)
     const barcodeDb = localStorage.getItem("barcodeDatabase");
     let arr: any[] = [];
     if (barcodeDb) {
       try {
         const parsed = JSON.parse(barcodeDb);
         arr = Object.values(parsed).filter(
-          (prod: any) => prod.supplier_id === supplierId || prod.supplier === supplierId // Fallback - במידה וה-ID הוא השם
+          (prod: any) => prod.supplier_id === supplierId || prod.supplier === supplierId
         );
-      } catch {
-        // ignore
-      }
+      } catch {}
     }
     setProducts(arr);
-    setLoading(false);
   }, [supplierId]);
 
-  return { supplier, products, loading };
+  return { supplier, setSupplier, products, loading };
 }
 
 const SupplierDetails: React.FC = () => {
   const params = useParams();
   const navigate = useNavigate();
   const supplierId = params.id;
-  const { supplier, products, loading } = useSupplierData(supplierId);
+  const { supplier, setSupplier, products, loading } = useSupplierData(supplierId);
 
-  if (loading) return <div className="p-8 text-center">טוען...</div>;
+  const [form, setForm] = React.useState<any>(null);
+  const [saving, setSaving] = React.useState(false);
+  const [editMode, setEditMode] = React.useState(false);
+  const [message, setMessage] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (supplier) {
+      setForm({
+        name: supplier.name || "",
+        contact_phone: supplier.contact_phone || "",
+        contact_email: supplier.contact_email || "",
+        delivery_days: supplier.delivery_days || [],
+        deadline_hour: supplier.deadline_hour || "",
+        notes: supplier.notes || "",
+      });
+    }
+  }, [supplier]);
+
+  if (loading || !form) return <div className="p-8 text-center">טוען...</div>;
   if (!supplier) {
     return (
       <div className="max-w-xl mx-auto mt-10 p-6 bg-card rounded-xl border shadow">
@@ -70,31 +88,106 @@ const SupplierDetails: React.FC = () => {
     );
   }
 
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  };
+
+  const handleCheckbox = (day: string) => {
+    setForm(f => ({
+      ...f,
+      delivery_days: f.delivery_days.includes(day)
+        ? f.delivery_days.filter((d: string) => d !== day)
+        : [...f.delivery_days, day]
+    }));
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setMessage(null);
+
+    const { error } = await supabase
+      .from("suppliers")
+      .update({
+        name: form.name,
+        contact_phone: form.contact_phone,
+        contact_email: form.contact_email,
+        delivery_days: form.delivery_days,
+        deadline_hour: form.deadline_hour,
+        notes: form.notes
+      })
+      .eq("id", supplier.id);
+
+    if (error) {
+      setMessage("שגיאה בשמירה: " + error.message);
+    } else {
+      setMessage("הפרטים נשמרו בהצלחה");
+      setEditMode(false);
+      setSupplier({ ...supplier, ...form }); // רפרש לוקאלי
+    }
+    setSaving(false);
+  };
+
   return (
     <main className="container mx-auto py-8 px-4 max-w-3xl">
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Building2 className="w-6 h-6 text-primary" />
-            {supplier.name}
+            {form.name}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-2">
-            {supplier.contact_phone && (
-              <div className="flex gap-2 items-center text-sm">
-                <Phone className="w-4 h-4" /> {supplier.contact_phone}
+          <form onSubmit={handleSave} className="space-y-4">
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 font-semibold">שם ספק: 
+                <Input name="name" value={form.name} onChange={handleInput} disabled={!editMode} required />
+              </label>
+              <label className="flex items-center gap-2"><Phone className="w-4 h-4" />
+                <Input name="contact_phone" value={form.contact_phone} onChange={handleInput} disabled={!editMode} placeholder="טלפון" />
+              </label>
+              <label className="flex items-center gap-2"><Mail className="w-4 h-4" />
+                <Input name="contact_email" value={form.contact_email} onChange={handleInput} disabled={!editMode} placeholder="אימייל" />
+              </label>
+              <div className="flex gap-2 flex-wrap items-center">
+                <span className="font-semibold">ימי אספקה:</span>
+                {weekdays.map(day => (
+                  <label key={day} className="flex items-center gap-1 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={form.delivery_days.includes(day)}
+                      disabled={!editMode}
+                      onChange={() => handleCheckbox(day)}
+                    />
+                    {weekdayLabels[day]}
+                  </label>
+                ))}
+              </div>
+              <label className="font-semibold flex items-center gap-2">
+                דדליין:
+                <Input type="time" name="deadline_hour" value={form.deadline_hour?.slice(0,5)} onChange={handleInput} disabled={!editMode} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="font-semibold">הערות:</span>
+                <textarea name="notes" className="border rounded-md p-2" rows={2} value={form.notes} onChange={handleInput} disabled={!editMode} />
+              </label>
+            </div>
+            <div className="flex gap-4 mt-2">
+              {editMode ? (
+                <>
+                  <Button type="submit" disabled={saving}>{saving ? "שומר..." : "שמור שינויים"}</Button>
+                  <Button type="button" variant="secondary" onClick={() => { setEditMode(false); setForm({ ...supplier }); setMessage(null); }}>ביטול</Button>
+                </>
+              ) : (
+                <Button type="button" onClick={() => setEditMode(true)}>ערוך</Button>
+              )}
+            </div>
+            {message && (
+              <div className={`text-sm mt-2 ${message.startsWith("שגיאה") ? "text-destructive" : "text-green-700"}`}>
+                {message}
               </div>
             )}
-            {supplier.contact_email && (
-              <div className="flex gap-2 items-center text-sm">
-                <Mail className="w-4 h-4" /> {supplier.contact_email}
-              </div>
-            )}
-            <div>ימי אספקה: {supplier.delivery_days?.map((d: string) => weekdayLabels[d] || d).join(", ") || "לא הוזן"}</div>
-            <div>דדליין: {supplier.deadline_hour?.replace(/:00$/, "") || "לא צויין"}</div>
-            {supplier.notes && <div className="mt-2 text-muted-foreground">{supplier.notes}</div>}
-          </div>
+          </form>
         </CardContent>
       </Card>
 
@@ -145,3 +238,4 @@ const SupplierDetails: React.FC = () => {
 };
 
 export default SupplierDetails;
+
