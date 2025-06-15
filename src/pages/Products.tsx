@@ -5,6 +5,16 @@ import ProductsTable from "@/components/ProductsTable";
 import EnhancedAddProductDialog, { Product } from "@/components/EnhancedAddProductDialog";
 import ExcelImportDialog, { BarcodeDatabase } from "@/components/ExcelImportDialog";
 import { toast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+import { Toggle } from "@/components/ui/toggle";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, Reset } from "lucide-react";
 
 const initialProducts: Product[] = [
   { barcode: "7290001234567", name: "מברגה בוש", quantity: 13, supplier: "חשמל יצחק", minStock: 5 },
@@ -17,6 +27,23 @@ const initialProducts: Product[] = [
 const Products = () => {
   const [products, setProducts] = React.useState<Product[]>(initialProducts);
   const [barcodeDatabase, setBarcodeDatabase] = React.useState<BarcodeDatabase>({});
+
+  // --- פילטרים ---
+  const [supplierFilter, setSupplierFilter] = React.useState<string | null>(null);
+  const [lowStockOnly, setLowStockOnly] = React.useState(false);
+
+  // הפקת רשימת ספקים ייחודיים
+  const uniqueSuppliers = React.useMemo(() => {
+    return Array.from(new Set(products.map((p) => p.supplier).filter(Boolean)));
+  }, [products]);
+
+  // החלת סינון על הרשימה
+  const filteredProducts = React.useMemo(() => {
+    let filtered = [...products];
+    if (supplierFilter) filtered = filtered.filter(p => p.supplier === supplierFilter);
+    if (lowStockOnly) filtered = filtered.filter(p => p.quantity <= p.minStock);
+    return filtered;
+  }, [products, supplierFilter, lowStockOnly]);
 
   // טעינת מאגר ברקודים מ-localStorage בעת הטעינה הראשונה
   React.useEffect(() => {
@@ -54,25 +81,19 @@ const Products = () => {
 
   const handleAddProduct = (product: Product) => {
     setProducts((prev) => {
-      // חיפוש מוצר קיים לפי שם
       const existingProductIndex = prev.findIndex((p) => p.name === product.name);
-      
       if (existingProductIndex !== -1) {
-        // אם המוצר קיים, נעדכן את הכמות
         const updatedProducts = [...prev];
         updatedProducts[existingProductIndex] = {
           ...updatedProducts[existingProductIndex],
           quantity: updatedProducts[existingProductIndex].quantity + product.quantity,
         };
-        
         toast({
           title: "המוצר עודכן בהצלחה!",
           description: `הכמות של "${product.name}" עודכנה ל-${updatedProducts[existingProductIndex].quantity}`,
         });
-        
         return updatedProducts;
       } else {
-        // אם המוצר לא קיים, נוסיף אותו כמוצר חדש
         toast({ title: "המוצר נוסף בהצלחה!" });
         return [...prev, product];
       }
@@ -81,30 +102,84 @@ const Products = () => {
 
   const handleBarcodeImport = (database: BarcodeDatabase) => {
     setBarcodeDatabase(database);
-    // שמירת המאגר ב-localStorage
     localStorage.setItem('barcodeDatabase', JSON.stringify(database));
     console.log("Barcode database imported and saved:", database);
-    
     toast({
       title: "מאגר ברקודים יובא בהצלחה!",
       description: `יובאו ${Object.keys(database).length} מוצרים למאגר`,
     });
   };
 
+  // איפוס כל הסינונים
+  const handleResetFilters = () => {
+    setSupplierFilter(null);
+    setLowStockOnly(false);
+  };
+
   return (
-    <main className="min-h-screen bg-background px-8 py-8">
-      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-primary mb-2">מוצרים</h1>
-          <p className="text-muted-foreground">רשימת מוצרים לניהול מלאי, צפייה והוספה.</p>
+    <main className="min-h-screen bg-background px-2 sm:px-8 py-8">
+      {/* טולבר עם סינונים */}
+      <div className="sticky top-0 z-20 bg-background pb-4 mb-6 flex flex-col-reverse items-stretch gap-2 sm:gap-0 sm:flex-row sm:items-end sm:justify-between border-b">
+        <div className="flex flex-wrap gap-2 items-center">
+          {/* פילטר לפי ספק */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="min-w-[120px] flex items-center gap-1">
+                ספק: {supplierFilter ? <span>{supplierFilter}</span> : <span className="text-muted-foreground">הכל</span>}
+                <ChevronDown className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>בחר ספק</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => setSupplierFilter(null)}
+                disabled={supplierFilter === null}
+              >
+                <span className="text-muted-foreground">הצג הכל</span>
+              </DropdownMenuItem>
+              {uniqueSuppliers.map(sup => (
+                <DropdownMenuItem
+                  key={sup}
+                  onClick={() => setSupplierFilter(sup)}
+                  disabled={supplierFilter === sup}
+                >
+                  {sup}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* פילטר מלאי נמוך (טוגל) */}
+          <Toggle
+            pressed={lowStockOnly}
+            size="sm"
+            aria-label="הצג רק מלאי נמוך"
+            onPressedChange={setLowStockOnly}
+            className="min-w-[90px]"
+          >
+            מלאי נמוך
+          </Toggle>
+
+          {/* איפוס סינון */}
+          <Button
+            onClick={handleResetFilters}
+            variant="ghost"
+            size="sm"
+            className="text-xs" 
+            title="איפוס סינון"
+          >
+            <Reset className="w-4 h-4 mr-1" />
+            איפוס סינון
+          </Button>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end mb-2 sm:mb-0">
           <ExcelImportDialog onImport={handleBarcodeImport} />
           <EnhancedAddProductDialog onAdd={handleAddProduct} barcodeDatabase={barcodeDatabase} />
         </div>
       </div>
+
       <div className="mt-4">
-        <ProductsTable products={products} />
+        <ProductsTable products={filteredProducts} />
       </div>
       <div className="mt-8">
         <Link to="/" className="text-blue-700 underline text-base">חזרה לדשבורד</Link>
