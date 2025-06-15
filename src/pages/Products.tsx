@@ -56,15 +56,12 @@ const Products = () => {
   // נטען מה-hock
   const { batches, loading, reload } = useInventoryBatches();
 
-  // מיזוג של initialProducts + אצוות, כולל expiryDate
+  // --- תיקון מיזוג: משלבים מוצרים שנוספו ידנית ב-state וכל ה-batches מהדאטה ---
   const mergedProducts = React.useMemo(() => {
+    // Barcodes שהגיעו מאצוות (Supabase)
     const batchBarcodes = new Set(batches.map(b => b.barcode));
-    const oldProducts = initialProducts
-      .filter(p => !batchBarcodes.has(p.barcode))
-      .map(p => ({
-        ...p,
-        expiryDate: null,
-      }));
+
+    // מוצרים מתוך אצוות (db)
     const dbProducts: Product[] = batches.map(b => ({
       barcode: b.barcode,
       name: b.product_name,
@@ -74,20 +71,30 @@ const Products = () => {
       price: Number(b.unit_price) || 0,
       expiryDate: b.expiry_date ?? null,
     }));
-    // מיזוג הרשימות
-    const merged = [...dbProducts, ...oldProducts];
-    // מיון: עם expiryDate (לא null/undefined) יופיעו ראשונים
+    // מוצרים שנוספו ידנית (products state) שבברקוד שלהם אין אצווה (ולכן אין כפילות)
+    const manualProducts = products.filter(p => !batchBarcodes.has(p.barcode));
+    // מוצרים התחלתיים שבברקוד שלהם אין אצווה ולא נשמרו ידנית
+    const manualBarcodes = new Set(manualProducts.map(p => p.barcode));
+    const oldProducts = initialProducts
+      .filter(p => !batchBarcodes.has(p.barcode) && !manualBarcodes.has(p.barcode))
+      .map(p => ({
+        ...p,
+        expiryDate: null,
+      }));
+    // סדר חדש: קודם אלו שבאו מה-db, אחר כך אלו שנוספו ידנית, אחר כך ה-initialProducts הוותיקים
+    const merged = [...dbProducts, ...manualProducts, ...oldProducts];
+
+    // מיון: קודם עם expiryDate לא null
     merged.sort((a, b) => {
       if (a.expiryDate && !b.expiryDate) return -1;
       if (!a.expiryDate && b.expiryDate) return 1;
-      // אופציונלית: מיון פנימי לפי expiryDate למי שיש, ולפי שם למי שאין
       if (a.expiryDate && b.expiryDate) {
         return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
       }
       return a.name.localeCompare(b.name, "he");
     });
     return merged;
-  }, [batches]);
+  }, [batches, products]);
 
   // חלת סינונים ומיון
   const filteredProducts = React.useMemo(() => {
@@ -136,6 +143,7 @@ const Products = () => {
     }
   }, [products]);
 
+  // פונקציה להוספת מוצר (לא משתנה)
   const handleAddProduct = (product: Product) => {
     setProducts((prev) => {
       const existingProductIndex = prev.findIndex((p) => p.name === product.name);
@@ -144,7 +152,7 @@ const Products = () => {
         updatedProducts[existingProductIndex] = {
           ...updatedProducts[existingProductIndex],
           quantity: updatedProducts[existingProductIndex].quantity + product.quantity,
-          price: product.price, // עדכון מחיר במקרה ועדכנו אותו
+          price: product.price,
         };
         toast({
           title: "המוצר עודכן בהצלחה!",
