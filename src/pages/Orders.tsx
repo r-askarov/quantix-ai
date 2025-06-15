@@ -9,7 +9,8 @@ import PurchaseOrderDialog from "@/components/PurchaseOrderDialog";
 import ReceivingDialog from "@/components/ReceivingDialog";
 import OCRShippingDocumentDialog from "@/components/OCRShippingDocumentDialog";
 import ShippingComparisonTable from "@/components/ShippingComparisonTable";
-import CreateOrderDialog from "@/components/CreateOrderDialog";
+import SupplierSelectionDialog from "@/components/SupplierSelectionDialog";
+import ProductSelectionOrderDialog from "@/components/ProductSelectionOrderDialog";
 import { Button } from "@/components/ui/button";
 import { Plus, Truck, ClipboardList } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,14 +22,37 @@ export interface ShippingItem {
   barcode?: string;
 }
 
+interface BarcodeProduct {
+  barcode: string;
+  name: string;
+  supplier: string;
+  unitPrice?: number;
+  category?: string;
+}
+
 const Orders = () => {
   const [shippingItems, setShippingItems] = React.useState<ShippingItem[]>([]);
   const [showComparison, setShowComparison] = React.useState(false);
-  const [showCreateOrder, setShowCreateOrder] = React.useState(false);
+  const [showSupplierSelection, setShowSupplierSelection] = React.useState(false);
+  const [showProductSelection, setShowProductSelection] = React.useState(false);
   const [showPurchaseOrder, setShowPurchaseOrder] = React.useState(false);
   const [showReceiving, setShowReceiving] = React.useState(false);
   const [selectedSupplier, setSelectedSupplier] = React.useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = React.useState<string | null>(null);
+  const [barcodeDatabase, setBarcodeDatabase] = React.useState<Record<string, BarcodeProduct>>({});
+
+  // טעינת מאגר ברקודים מ-localStorage
+  React.useEffect(() => {
+    const savedDatabase = localStorage.getItem('barcodeDatabase');
+    if (savedDatabase) {
+      try {
+        const parsedDatabase = JSON.parse(savedDatabase);
+        setBarcodeDatabase(parsedDatabase);
+      } catch (error) {
+        console.error('Error loading barcode database:', error);
+      }
+    }
+  }, []);
 
   const handleOCRResult = (items: ShippingItem[]) => {
     setShippingItems(items);
@@ -45,6 +69,16 @@ const Orders = () => {
     setShowReceiving(true);
   };
 
+  const handleNewOrderClick = () => {
+    setShowSupplierSelection(true);
+  };
+
+  const handleSupplierSelected = (supplierName: string) => {
+    setSelectedSupplier(supplierName);
+    setShowSupplierSelection(false);
+    setShowProductSelection(true);
+  };
+
   return (
     <main className="min-h-screen bg-background px-8 py-8">
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -54,7 +88,7 @@ const Orders = () => {
         </div>
         <div className="flex gap-2">
           <Button
-            onClick={() => setShowCreateOrder(true)}
+            onClick={handleNewOrderClick}
             className="bg-green-600 hover:bg-green-700 text-white"
           >
             <Plus className="w-4 h-4 ml-1" />
@@ -104,9 +138,18 @@ const Orders = () => {
       </div>
 
       {/* Dialogs */}
-      <CreateOrderDialog
-        open={showCreateOrder}
-        onClose={() => setShowCreateOrder(false)}
+      <SupplierSelectionDialog
+        open={showSupplierSelection}
+        onClose={() => setShowSupplierSelection(false)}
+        onSupplierSelected={handleSupplierSelected}
+        barcodeDatabase={barcodeDatabase}
+      />
+
+      <ProductSelectionOrderDialog
+        open={showProductSelection}
+        onClose={() => setShowProductSelection(false)}
+        supplierName={selectedSupplier}
+        barcodeDatabase={barcodeDatabase}
       />
 
       <PurchaseOrderDialog
