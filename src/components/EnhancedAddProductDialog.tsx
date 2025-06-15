@@ -1,11 +1,13 @@
+
 import * as React from "react";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Barcode as BarcodeIcon } from "lucide-react";
 import { format } from "date-fns";
+import BarcodeScannerDialog from "./BarcodeScannerDialog";
 
 import { Product } from "@/pages/Products";
 
@@ -28,6 +30,7 @@ function DateInput({ value, onChange }: { value: string | null; onChange: (val: 
 // props: תומך ב-onAdd (עם expiryDate) ו-barcodeDatabase
 const EnhancedAddProductDialog = ({ onAdd, barcodeDatabase }: { onAdd: (product: Product) => void, barcodeDatabase: any }) => {
   const [open, setOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [product, setProduct] = useState<Partial<Product>>({
     barcode: "",
     name: "",
@@ -52,6 +55,15 @@ const EnhancedAddProductDialog = ({ onAdd, barcodeDatabase }: { onAdd: (product:
       [e.target.name]:
         e.target.type === "number" ? Number(e.target.value) : e.target.value,
     }));
+  };
+
+  const handleBarcodeScan = (code: string) => {
+    setProduct(prev => ({
+      ...prev,
+      barcode: code,
+    }));
+    toast({ title: "ברקוד נסרק בהצלחה!" });
+    setScannerOpen(false);
   };
 
   const handleSubmit = () => {
@@ -91,7 +103,28 @@ const EnhancedAddProductDialog = ({ onAdd, barcodeDatabase }: { onAdd: (product:
           <DialogTitle>הוספת מוצר חדש</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
-          <Input placeholder="ברקוד" name="barcode" value={product.barcode || ""} onChange={handleChange} />
+          <div className="flex gap-2">
+            <Input
+              placeholder="ברקוד"
+              name="barcode"
+              value={product.barcode || ""}
+              onChange={handleChange}
+            />
+            <Button
+              variant="outline"
+              type="button"
+              className="whitespace-nowrap flex gap-1 items-center"
+              onClick={() => setScannerOpen(true)}
+            >
+              <BarcodeIcon className="w-5 h-5" />
+              סרוק ברקוד
+            </Button>
+            <BarcodeScannerDialog
+              open={scannerOpen}
+              onClose={() => setScannerOpen(false)}
+              onDetected={handleBarcodeScan}
+            />
+          </div>
           <Input placeholder="שם מוצר" name="name" value={product.name || ""} onChange={handleChange} />
           <Input placeholder="ספק" name="supplier" value={product.supplier || ""} onChange={handleChange} />
           <Input type="number" min={0} placeholder="כמות התחלתית" name="quantity" value={product.quantity || ""} onChange={handleChange} />
@@ -112,3 +145,4 @@ const EnhancedAddProductDialog = ({ onAdd, barcodeDatabase }: { onAdd: (product:
 };
 
 export default EnhancedAddProductDialog;
+
