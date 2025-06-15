@@ -4,10 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { InventoryBatch } from "@/types/inventory";
 
 interface Props {
   onAdded: () => void;
@@ -15,7 +13,6 @@ interface Props {
 
 export default function AddInventoryBatchDialog({ onAdded }: Props) {
   const [open, setOpen] = React.useState(false);
-  const [expiry, setExpiry] = React.useState<string | null>(null);
 
   const [form, setForm] = React.useState({
     barcode: "",
@@ -34,20 +31,20 @@ export default function AddInventoryBatchDialog({ onAdded }: Props) {
     e.preventDefault();
     setLoading(true);
 
-    // בדיקה אם קיים batch זהה (ברקוד + תוקף)
+    // חפש אם כבר קיים batch זהה ברקוד + expiry_date
     const { data: existing, error } = await supabase
-      .from("inventory_batches")
+      .from<any>("inventory_batches")
       .select("*")
       .eq("barcode", form.barcode)
       .eq("expiry_date", form.expiry_date || null)
       .maybeSingle();
 
-    if (existing) {
+    if (existing && existing.id) {
       // עדכן כמות קיימת
-      const { error: updateError } = await supabase
-        .from("inventory_batches")
+      await supabase
+        .from<any>("inventory_batches")
         .update({
-          quantity: existing.quantity + Number(form.quantity),
+          quantity: Number(existing.quantity) + Number(form.quantity),
           supplier: form.supplier || existing.supplier,
           unit_price: form.unit_price ? Number(form.unit_price) : existing.unit_price,
         })
@@ -61,7 +58,7 @@ export default function AddInventoryBatchDialog({ onAdded }: Props) {
     }
 
     // יצירת batch חדש
-    const { error: insertError } = await supabase.from("inventory_batches").insert([
+    await supabase.from<any>("inventory_batches").insert([
       {
         barcode: form.barcode,
         product_name: form.product_name,
@@ -87,13 +84,16 @@ export default function AddInventoryBatchDialog({ onAdded }: Props) {
           <DialogTitle>קליטת אצווה/סדרה חדשה</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div><Label>ברקוד *</Label>
+          <div>
+            <Label>ברקוד *</Label>
             <Input value={form.barcode} onChange={e => handleChange("barcode", e.target.value)} required autoFocus />
           </div>
-          <div><Label>שם מוצר *</Label>
+          <div>
+            <Label>שם מוצר *</Label>
             <Input value={form.product_name} onChange={e => handleChange("product_name", e.target.value)} required />
           </div>
-          <div><Label>כמות *</Label>
+          <div>
+            <Label>כמות *</Label>
             <Input type="number" value={form.quantity} min={1} onChange={e => handleChange("quantity", e.target.value)} required />
           </div>
           <div>
