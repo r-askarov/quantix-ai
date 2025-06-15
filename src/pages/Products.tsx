@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Toggle } from "@/components/ui/toggle";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Reset } from "lucide-react";
+import { ChevronDown, RotateCcw } from "lucide-react"; // use RotateCcw instead of Reset
 
 const initialProducts: Product[] = [
   { barcode: "7290001234567", name: "מברגה בוש", quantity: 13, supplier: "חשמל יצחק", minStock: 5 },
@@ -168,7 +168,7 @@ const Products = () => {
             className="text-xs" 
             title="איפוס סינון"
           >
-            <Reset className="w-4 h-4 mr-1" />
+            <RotateCcw className="w-4 h-4 mr-1" /> {/* Changed from Reset to RotateCcw */}
             איפוס סינון
           </Button>
         </div>
@@ -189,3 +189,4 @@ const Products = () => {
 };
 
 export default Products;
+
