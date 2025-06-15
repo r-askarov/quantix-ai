@@ -37,7 +37,6 @@ const initialProducts: Product[] = [
 type SortOrder = "asc" | "desc";
 
 import { useInventoryBatches } from "@/hooks/useInventoryBatches";
-import InventoryBatchesTable from "@/components/InventoryBatchesTable";
 import AddInventoryBatchDialog from "@/components/AddInventoryBatchDialog";
 
 const Products = () => {
@@ -54,36 +53,43 @@ const Products = () => {
     return Array.from(new Set(products.map((p) => p.supplier).filter(Boolean)));
   }, [products]);
 
-  // במקום סטייט של products: נטען מה-hock
+  // נטען מה-hock
   const { batches, loading, reload } = useInventoryBatches();
 
-  // 1. נבנה רשימה שממזגת initialProducts שרק לא קיימים כבר בבאצ'ים
+  // מיזוג של initialProducts + אצוות, כולל expiryDate
   const mergedProducts = React.useMemo(() => {
-    // ממפה את כל הברקודים הקיימים בבאצ'ים מהדאטהבייס
     const batchBarcodes = new Set(batches.map(b => b.barcode));
-    // בוחר את המוצרים מ-initialProducts שלא קיימים כבר בבאצ'ים
     const oldProducts = initialProducts
       .filter(p => !batchBarcodes.has(p.barcode))
       .map(p => ({
         ...p,
-        expiryDate: null, // אין תאריך במוצרים ללא באצ'
+        expiryDate: null,
       }));
-    // ממיר את batches לפורמט Product ליצירת טבלה ב-ProductsTable (כולל expiryDate)
     const dbProducts: Product[] = batches.map(b => ({
       barcode: b.barcode,
       name: b.product_name,
       quantity: b.quantity,
       supplier: b.supplier ?? "",
-      minStock: 0, // אם תרצה לתמוך במינימום מלאי מהדאטהבייס, אפשר להוסיף שדה
+      minStock: 0,
       price: Number(b.unit_price) || 0,
       expiryDate: b.expiry_date ?? null,
     }));
-    // משלב הכל לרשימה אחת
-    return [...dbProducts, ...oldProducts];
+    // מיזוג הרשימות
+    const merged = [...dbProducts, ...oldProducts];
+    // מיון: עם expiryDate (לא null/undefined) יופיעו ראשונים
+    merged.sort((a, b) => {
+      if (a.expiryDate && !b.expiryDate) return -1;
+      if (!a.expiryDate && b.expiryDate) return 1;
+      // אופציונלית: מיון פנימי לפי expiryDate למי שיש, ולפי שם למי שאין
+      if (a.expiryDate && b.expiryDate) {
+        return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
+      }
+      return a.name.localeCompare(b.name, "he");
+    });
+    return merged;
   }, [batches]);
 
-  // כל הטבלאות וסינונים יופעלו על mergedProducts
-  // החלת סינונים ומיון
+  // חלת סינונים ומיון
   const filteredProducts = React.useMemo(() => {
     let filtered = [...mergedProducts];
     if (supplierFilter) filtered = filtered.filter(p => p.supplier === supplierFilter);
@@ -271,14 +277,9 @@ const Products = () => {
         </div>
       </div>
 
-      {/* טבלת מוצרים מאוחדת */}
+      {/* טבלה מאוחדת בלבד */}
       <div className="my-6">
         <ProductsTable products={filteredProducts} />
-      </div>
-
-      {/* ניתן להמשיך להציג טבלת אצוות בנפרד מתחת */}
-      <div className="mt-4">
-        <InventoryBatchesTable batches={batches} />
       </div>
 
       {/* סכום כולל */}
