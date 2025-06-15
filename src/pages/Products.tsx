@@ -56,45 +56,72 @@ const Products = () => {
   // נטען מה-hock
   const { batches, loading, reload } = useInventoryBatches();
 
-  // --- תיקון מיזוג: משלבים מוצרים שנוספו ידנית ב-state וכל ה-batches מהדאטה ---
+  /**
+   * מוצרים מאוחדים לפי ברקוד,
+   * עם פירוט אצוות/תפוגות בעמודת הערות.
+   */
   const mergedProducts = React.useMemo(() => {
-    // Barcodes שהגיעו מאצוות (Supabase)
-    const batchBarcodes = new Set(batches.map(b => b.barcode));
-
-    // מוצרים מתוך אצוות (db)
-    const dbProducts: Product[] = batches.map(b => ({
-      barcode: b.barcode,
-      name: b.product_name,
-      quantity: b.quantity,
-      supplier: b.supplier ?? "",
-      minStock: 0,
-      price: Number(b.unit_price) || 0,
-      expiryDate: b.expiry_date ?? null,
-    }));
-    // מוצרים שנוספו ידנית (products state) שבברקוד שלהם אין אצווה (ולכן אין כפילות)
-    const manualProducts = products.filter(p => !batchBarcodes.has(p.barcode));
-    // מוצרים התחלתיים שבברקוד שלהם אין אצווה ולא נשמרו ידנית
+    // מיפוי אצוות לפי ברקוד (קיבוץ כל האצוות לאותו מוצר)
+    const batchesByBarcode = batches.reduce<Record<string, InventoryBatch[]>>((acc, batch) => {
+      if (!acc[batch.barcode]) acc[batch.barcode] = [];
+      acc[batch.barcode].push(batch);
+      return acc;
+    }, {});
+    // רשימת ברקודים מתוך האצוות (db)
+    const batchBarcodes = new Set(Object.keys(batchesByBarcode));
+    // מאחדים מוצרים מאצוות
+    const batchProducts: (Product & {
+      remarks?: string;
+    })[] = Object.entries(batchesByBarcode).map(([barcode, batchArr]) => {
+      // כמות כוללת
+      const totalQty = batchArr.reduce((sum, b) => sum + b.quantity, 0);
+      // כל תפוגות וכמות לכל אחת
+      const expiries: Record<string, number> = {};
+      batchArr.forEach(b => {
+        const key = b.expiry_date ? b.expiry_date : "ללא תפוגה";
+        expiries[key] = (expiries[key] || 0) + b.quantity;
+      });
+      // בונים טקסט להערה
+      const remarks = Object.entries(expiries)
+        .map(([dt, qty]) => `${qty} מוצרים עם תפוגה ${dt === "ללא תפוגה" ? "ללא" : new Date(dt).toLocaleDateString('he-IL')}`)
+        .join(' | ');
+      // לוקחים ערך אקראי מ-batchArr (למשות שדות שם מוצר/ספק)
+      const b = batchArr[0];
+      return {
+        barcode,
+        name: b.product_name,
+        quantity: totalQty,
+        supplier: b.supplier ?? "",
+        minStock: 0,
+        price: Number(b.unit_price) || 0,
+        expiryDate: null,
+        remarks,
+      };
+    });
+    // מוצרים שנוספו ידנית (products state) שבברקוד שלהם אין אף batch (לא ייעלמו)
+    const manualProducts = products
+      .filter(p => !batchBarcodes.has(p.barcode))
+      .map(p => ({
+        ...p,
+        remarks: undefined
+      }));
+    // מוצרים התחלתיים שלא ב-db ולא ב-manual products
     const manualBarcodes = new Set(manualProducts.map(p => p.barcode));
     const oldProducts = initialProducts
       .filter(p => !batchBarcodes.has(p.barcode) && !manualBarcodes.has(p.barcode))
       .map(p => ({
         ...p,
         expiryDate: null,
+        remarks: undefined
       }));
-    // סדר חדש: קודם אלו שבאו מה-db, אחר כך אלו שנוספו ידנית, אחר כך ה-initialProducts הוותיקים
-    const merged = [...dbProducts, ...manualProducts, ...oldProducts];
 
-    // מיון: קודם עם expiryDate לא null
-    merged.sort((a, b) => {
-      if (a.expiryDate && !b.expiryDate) return -1;
-      if (!a.expiryDate && b.expiryDate) return 1;
-      if (a.expiryDate && b.expiryDate) {
-        return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
-      }
-      return a.name.localeCompare(b.name, "he");
-    });
+    // סדר: קודם אלו שבאו מה-db, אחר כך ידניים, אחר כך ותיקים
+    const merged = [...batchProducts, ...manualProducts, ...oldProducts];
+
+    // מיונים - כרגיל
+    merged.sort((a, b) => a.name.localeCompare(b.name, "he"));
     return merged;
-  }, [batches, products]);
+  }, [batches, products, initialProducts]);
 
   // חלת סינונים ומיון
   const filteredProducts = React.useMemo(() => {
@@ -288,6 +315,7 @@ const Products = () => {
 
       {/* טבלה מאוחדת בלבד */}
       <div className="my-6">
+        {/* שולח את products עם remarks ל-ProductsTable */}
         <ProductsTable products={filteredProducts} />
       </div>
 

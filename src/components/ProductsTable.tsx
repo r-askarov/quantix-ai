@@ -4,8 +4,9 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import type { Product } from "../pages/Products";
 import { format } from "date-fns";
 
+// נוסיף טיפוס שגם שדה הערות אפשרי:
 interface ProductsTableProps {
-  products: Product[];
+  products: (Product & { remarks?: string })[];
 }
 
 const ProductsTable: React.FC<ProductsTableProps> = ({ products }) => {
@@ -16,11 +17,11 @@ const ProductsTable: React.FC<ProductsTableProps> = ({ products }) => {
           <TableRow>
             <TableHead className="text-right">ברקוד</TableHead>
             <TableHead className="text-right">שם מוצר</TableHead>
-            <TableHead className="text-right">כמות</TableHead>
+            <TableHead className="text-right">כמות כוללת</TableHead>
             <TableHead className="text-right">ספק</TableHead>
             <TableHead className="text-right">מלאי מינימום</TableHead>
             <TableHead className="text-right">מחיר</TableHead>
-            <TableHead className="text-right">תאריך תפוגה</TableHead>
+            <TableHead className="text-right">הערות</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -33,14 +34,6 @@ const ProductsTable: React.FC<ProductsTableProps> = ({ products }) => {
           ) : (
             products.map((p) => {
               const isLow = p.quantity <= p.minStock;
-              let expiry = "אין";
-              if (p.expiryDate) {
-                try {
-                  expiry = format(new Date(p.expiryDate), "dd/MM/yyyy");
-                } catch {
-                  expiry = "שגוי";
-                }
-              }
               return (
                 <TableRow key={p.barcode} className={isLow ? "bg-red-100/60" : ""}>
                   <TableCell className="font-mono">{p.barcode}</TableCell>
@@ -51,7 +44,13 @@ const ProductsTable: React.FC<ProductsTableProps> = ({ products }) => {
                   <TableCell>{p.supplier}</TableCell>
                   <TableCell>{p.minStock}</TableCell>
                   <TableCell>{typeof p.price === "number" ? p.price + " ₪" : "-"}</TableCell>
-                  <TableCell>{expiry}</TableCell>
+                  <TableCell>
+                    {p.remarks
+                      ? p.remarks
+                      : (p.expiryDate
+                          ? (() => { try { return format(new Date(p.expiryDate), "dd/MM/yyyy"); } catch { return "שגוי"; } })()
+                          : "אין")}
+                  </TableCell>
                 </TableRow>
               );
             })
