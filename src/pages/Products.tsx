@@ -35,6 +35,10 @@ const initialProducts: Product[] = [
 
 type SortOrder = "asc" | "desc";
 
+import { useInventoryBatches } from "@/hooks/useInventoryBatches";
+import InventoryBatchesTable from "@/components/InventoryBatchesTable";
+import AddInventoryBatchDialog from "@/components/AddInventoryBatchDialog";
+
 const Products = () => {
   const [products, setProducts] = React.useState<Product[]>(initialProducts);
   const [barcodeDatabase, setBarcodeDatabase] = React.useState<BarcodeDatabase>({});
@@ -146,6 +150,15 @@ const Products = () => {
     return filteredProducts.reduce((sum, p) => sum + (typeof p.price === "number" ? p.price * p.quantity : 0), 0);
   }, [filteredProducts]);
 
+  // במקום סטייט של products: נטען מה-hock
+  const { batches, loading, reload } = useInventoryBatches();
+
+  // מחשבים סכום כולל לכל האצוות
+  const totalStockValue2 = React.useMemo(() =>
+    batches.reduce((sum, b) =>
+      sum + (typeof b.unit_price === "number" ? b.unit_price * b.quantity : 0)
+    , 0), [batches]);
+
   return (
     <main className="min-h-screen bg-background px-2 sm:px-8 py-8">
       {/* טולבר וסינונים */}
@@ -225,13 +238,19 @@ const Products = () => {
         </div>
       </div>
 
+      <div className="flex flex-col sm:flex-row items-end justify-between mb-5 gap-2">
+        <div className="flex-1 flex gap-2">
+          <AddInventoryBatchDialog onAdded={reload} />
+        </div>
+      </div>
+
       <div className="mt-4">
-        <ProductsTable products={filteredProducts} />
+        <InventoryBatchesTable batches={batches} />
       </div>
       {/* סכום כולל */}
       <div className="mt-4 flex items-center justify-end">
         <div className="bg-muted/60 text-lg font-bold px-4 py-2 rounded shadow border">
-          סך שווי מלאי מוצג: <span className="font-mono">{totalStockValue.toLocaleString("he-IL")}</span> <span className="text-base font-normal text-muted-foreground">₪</span>
+          סך שווי מלאי מוצג: <span className="font-mono">{totalStockValue2.toLocaleString("he-IL")}</span> <span className="text-base font-normal text-muted-foreground">₪</span>
         </div>
       </div>
       <div className="mt-8">
