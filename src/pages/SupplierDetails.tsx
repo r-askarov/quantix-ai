@@ -105,6 +105,7 @@ const SupplierDetails: React.FC = () => {
   );
   const pageCount = Math.ceil(products.length / PRODUCTS_PER_PAGE);
 
+  // תמיד נטען את הספק החדש ובעת ביטול נחזור לערכים המקוריים
   React.useEffect(() => {
     if (supplier) {
       setForm({
@@ -115,9 +116,12 @@ const SupplierDetails: React.FC = () => {
         deadline_hour: supplier.deadline_hour || "",
         notes: supplier.notes || "",
       });
+      setEditMode(false);
+      setMessage(null);
     }
-  }, [supplier]);
+  }, [supplierId, supplier]);
 
+  // אם אין ספק או בטעינה
   if (loading || !form) return <div className="p-8 text-center">טוען...</div>;
   if (!supplier) {
     return (
@@ -168,6 +172,17 @@ const SupplierDetails: React.FC = () => {
     setSaving(false);
   };
 
+  // בדיקה אם בוצע שינוי כלשהו – כדי לאפשר שמירה רק אם שונה משהו
+  const isDirty = form &&
+    (
+      form.name !== (supplier.name || "") ||
+      form.contact_phone !== (supplier.contact_phone || "") ||
+      form.contact_email !== (supplier.contact_email || "") ||
+      JSON.stringify(form.delivery_days) !== JSON.stringify(supplier.delivery_days || []) ||
+      form.deadline_hour !== (supplier.deadline_hour || "") ||
+      form.notes !== (supplier.notes || "")
+    );
+
   return (
     <main className="container mx-auto py-8 px-4 max-w-3xl">
       <Card className="mb-6">
@@ -215,8 +230,19 @@ const SupplierDetails: React.FC = () => {
             <div className="flex gap-4 mt-2">
               {editMode ? (
                 <>
-                  <Button type="submit" disabled={saving}>{saving ? "שומר..." : "שמור שינויים"}</Button>
-                  <Button type="button" variant="secondary" onClick={() => { setEditMode(false); setForm({ ...supplier }); setMessage(null); }}>ביטול</Button>
+                  <Button type="submit" disabled={saving || !isDirty}>{saving ? "שומר..." : "שמור שינויים"}</Button>
+                  <Button type="button" variant="secondary" onClick={() => {
+                    setForm({
+                      name: supplier.name || "",
+                      contact_phone: supplier.contact_phone || "",
+                      contact_email: supplier.contact_email || "",
+                      delivery_days: supplier.delivery_days || [],
+                      deadline_hour: supplier.deadline_hour || "",
+                      notes: supplier.notes || ""
+                    });
+                    setEditMode(false);
+                    setMessage(null);
+                  }}>ביטול</Button>
                 </>
               ) : (
                 <Button type="button" onClick={() => setEditMode(true)}>ערוך</Button>
