@@ -76,18 +76,28 @@ const Products = () => {
     })[] = Object.entries(batchesByBarcode).map(([barcode, batchArr]) => {
       // כמות כוללת
       const totalQty = batchArr.reduce((sum, b) => sum + b.quantity, 0);
-      // כל תפוגות וכמות לכל אחת
-      const expiries: Record<string, number> = {};
+
+      // חישוב מדויק של כמויות לפי תאריך תפוגה
+      const expiryCount: Record<string, number> = {};
       batchArr.forEach(b => {
-        const key = b.expiry_date ? b.expiry_date : "ללא תפוגה";
-        expiries[key] = (expiries[key] || 0) + b.quantity;
+        // נציג "ללא תפוגה" במפתח נפרד
+        const key = b.expiry_date ? b.expiry_date.slice(0, 10) : "ללא תפוגה";
+        expiryCount[key] = (expiryCount[key] || 0) + b.quantity;
       });
-      // בונים טקסט להערה
-      const remarks = Object.entries(expiries)
-        .map(([dt, qty]) => `${qty} מוצרים עם תפוגה ${dt === "ללא תפוגה" ? "ללא" : new Date(dt).toLocaleDateString('he-IL')}`)
+      // בונים טקסט לכל expiry - כל תוקף, כמה פריטים
+      const remarks = Object.entries(expiryCount)
+        .map(([dt, qty]) =>
+          dt === "ללא תפוגה"
+            ? `${qty} מוצרים ללא תפוגה`
+            : `${qty} מוצרים עם תפוגה ${new Date(dt).toLocaleDateString('he-IL')}`
+        )
         .join(' | ');
+
       // לוקחים ערך אקראי מ-batchArr (למשות שדות שם מוצר/ספק)
       const b = batchArr[0];
+      // DEBUG: בודק בקונסול מה מוצג במרקס
+      console.log(`[mergedProducts][${barcode}] remarks: ${remarks}`);
+
       return {
         barcode,
         name: b.product_name,
