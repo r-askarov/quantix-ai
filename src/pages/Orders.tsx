@@ -1,35 +1,56 @@
 
 import * as React from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import TodayOrdersBoard from "@/components/TodayOrdersBoard";
+import TodayDeliveriesBoard from "@/components/TodayDeliveriesBoard";
+import PurchaseOrderDialog from "@/components/PurchaseOrderDialog";
+import ReceivingDialog from "@/components/ReceivingDialog";
 import OCRShippingDocumentDialog from "@/components/OCRShippingDocumentDialog";
 import ShippingComparisonTable from "@/components/ShippingComparisonTable";
 import CreateOrderDialog from "@/components/CreateOrderDialog";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Truck, ClipboardList } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export interface ShippingItem {
   name: string;
   quantity: number;
   status: 'match' | 'missing' | 'extra';
-  barcode?: string; // ברקוד אופציונלי
+  barcode?: string;
 }
 
 const Orders = () => {
   const [shippingItems, setShippingItems] = React.useState<ShippingItem[]>([]);
   const [showComparison, setShowComparison] = React.useState(false);
   const [showCreateOrder, setShowCreateOrder] = React.useState(false);
+  const [showPurchaseOrder, setShowPurchaseOrder] = React.useState(false);
+  const [showReceiving, setShowReceiving] = React.useState(false);
+  const [selectedSupplier, setSelectedSupplier] = React.useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = React.useState<string | null>(null);
 
   const handleOCRResult = (items: ShippingItem[]) => {
     setShippingItems(items);
     setShowComparison(true);
   };
 
+  const handleCreatePurchaseOrder = (supplierId: string) => {
+    setSelectedSupplier(supplierId);
+    setShowPurchaseOrder(true);
+  };
+
+  const handleStartReceiving = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setShowReceiving(true);
+  };
+
   return (
     <main className="min-h-screen bg-background px-8 py-8">
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-primary mb-2">הזמנות</h1>
-          <p className="text-muted-foreground">ניהול הזמנות רכש ומכירה בצורה מרוכזת.</p>
+          <h1 className="text-3xl font-black text-primary mb-2">ניהול רכש וקליטת סחורה</h1>
+          <p className="text-muted-foreground">ניהול הזמנות רכש יומי וקליטת סחורה בזמן אמת.</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -43,26 +64,61 @@ const Orders = () => {
         </div>
       </div>
 
-      {showComparison && shippingItems.length > 0 && (
-        <div className="mb-8">
-          <ShippingComparisonTable items={shippingItems} />
-        </div>
-      )}
+      <Tabs defaultValue="daily-management" dir="rtl">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="daily-management" className="flex items-center gap-2">
+            <ClipboardList className="w-4 h-4" />
+            ניהול יומי
+          </TabsTrigger>
+          <TabsTrigger value="shipping-documents" className="flex items-center gap-2">
+            <Truck className="w-4 h-4" />
+            תעודות משלוח
+          </TabsTrigger>
+        </TabsList>
 
-      {!showComparison && (
-        <div className="rounded-xl bg-card shadow border p-6 mt-8 text-center text-muted-foreground">
-          <span>אין הזמנות להצגה כרגע. השתמש בכלי OCR כדי לסרוק תעודת משלוח או צור הזמנה חדשה לספק.</span>
-        </div>
-      )}
+        <TabsContent value="daily-management" className="space-y-6 mt-6">
+          {/* דשבורד הזמנות שצריך לבצע היום */}
+          <TodayOrdersBoard onCreateOrder={handleCreatePurchaseOrder} />
+          
+          {/* דשבורד הזמנות שמיועדות להיקלט היום */}
+          <TodayDeliveriesBoard onStartReceiving={handleStartReceiving} />
+        </TabsContent>
+
+        <TabsContent value="shipping-documents" className="mt-6">
+          {showComparison && shippingItems.length > 0 && (
+            <div className="mb-8">
+              <ShippingComparisonTable items={shippingItems} />
+            </div>
+          )}
+
+          {!showComparison && (
+            <div className="rounded-xl bg-card shadow border p-6 mt-8 text-center text-muted-foreground">
+              <span>אין תעודות משלוח להצגה כרגע. השתמש בכלי OCR כדי לסרוק תעודת משלוח.</span>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <div className="mt-8">
         <Link to="/" className="text-blue-700 underline text-base">חזרה לדשבורד</Link>
       </div>
 
-      {/* Create Order Dialog */}
+      {/* Dialogs */}
       <CreateOrderDialog
         open={showCreateOrder}
         onClose={() => setShowCreateOrder(false)}
+      />
+
+      <PurchaseOrderDialog
+        open={showPurchaseOrder}
+        onClose={() => setShowPurchaseOrder(false)}
+        supplierId={selectedSupplier}
+      />
+
+      <ReceivingDialog
+        open={showReceiving}
+        onClose={() => setShowReceiving(false)}
+        orderId={selectedOrderId}
       />
     </main>
   );
