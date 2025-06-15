@@ -1,7 +1,11 @@
+
 import * as React from "react";
 import { Link } from "react-router-dom";
 import OCRShippingDocumentDialog from "@/components/OCRShippingDocumentDialog";
 import ShippingComparisonTable from "@/components/ShippingComparisonTable";
+import CreateOrderDialog from "@/components/CreateOrderDialog";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 export interface ShippingItem {
   name: string;
@@ -13,6 +17,7 @@ export interface ShippingItem {
 const Orders = () => {
   const [shippingItems, setShippingItems] = React.useState<ShippingItem[]>([]);
   const [showComparison, setShowComparison] = React.useState(false);
+  const [showCreateOrder, setShowCreateOrder] = React.useState(false);
 
   const handleOCRResult = (items: ShippingItem[]) => {
     setShippingItems(items);
@@ -27,6 +32,13 @@ const Orders = () => {
           <p className="text-muted-foreground">ניהול הזמנות רכש ומכירה בצורה מרוכזת.</p>
         </div>
         <div className="flex gap-2">
+          <Button
+            onClick={() => setShowCreateOrder(true)}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            <Plus className="w-4 h-4 ml-1" />
+            הזמנה חדשה לספק
+          </Button>
           <OCRShippingDocumentDialog onOCRResult={handleOCRResult} />
         </div>
       </div>
@@ -39,13 +51,19 @@ const Orders = () => {
 
       {!showComparison && (
         <div className="rounded-xl bg-card shadow border p-6 mt-8 text-center text-muted-foreground">
-          <span>אין הזמנות להצגה כרגע. השתמש בכלי OCR כדי לסרוק תעודת משלוח.</span>
+          <span>אין הזמנות להצגה כרגע. השתמש בכלי OCR כדי לסרוק תעודת משלוח או צור הזמנה חדשה לספק.</span>
         </div>
       )}
 
       <div className="mt-8">
         <Link to="/" className="text-blue-700 underline text-base">חזרה לדשבורד</Link>
       </div>
+
+      {/* Create Order Dialog */}
+      <CreateOrderDialog
+        open={showCreateOrder}
+        onClose={() => setShowCreateOrder(false)}
+      />
     </main>
   );
 };
