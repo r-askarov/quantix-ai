@@ -25,15 +25,7 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
   const stopScanning = () => {
     console.log("Stopping scanner...");
     
-    if (readerRef.current) {
-      try {
-        readerRef.current.reset();
-        console.log("Reader reset successfully");
-      } catch (err) {
-        console.log("Error resetting reader:", err);
-      }
-    }
-    
+    // Stop the media stream tracks
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => {
         track.stop();
@@ -42,9 +34,13 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
       streamRef.current = null;
     }
     
+    // Clear video element
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    
+    // Clear reader reference
+    readerRef.current = null;
     
     setScanning(false);
     setLoading(false);
