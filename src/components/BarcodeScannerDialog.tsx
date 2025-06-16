@@ -57,13 +57,7 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
         aspectRatio: 2.3, // Better ratio for barcodes
         disableFlip: false, // Allow image flipping for better detection
         videoConstraints: {
-          facingMode: "environment",
-          focusMode: "continuous", // Enable auto-focus
-          advanced: [
-            { focusMode: "continuous" },
-            { exposureMode: "continuous" },
-            { whiteBalanceMode: "continuous" }
-          ]
+          facingMode: "environment"
         },
         formatsToSupport: [
           "EAN_13", "EAN_8", "CODE_128", "CODE_39", "UPC_A", "UPC_E", 
@@ -73,11 +67,7 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
 
       await scanner.start(
         { 
-          facingMode: "environment",
-          advanced: [
-            { focusMode: "continuous" },
-            { torch: false }
-          ]
+          facingMode: "environment"
         },
         config,
         (decodedText, decodedResult) => {
