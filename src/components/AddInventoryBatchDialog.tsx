@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { InventoryBatch } from "@/types/inventory";
+import ExpiryDatePicker from "./ExpiryDatePicker";
 
 interface Props {
   onAdded: () => void;
@@ -102,14 +103,12 @@ export default function AddInventoryBatchDialog({ onAdded }: Props) {
             <Label>כמות *</Label>
             <Input type="number" value={form.quantity} min={1} onChange={e => handleChange("quantity", e.target.value)} required />
           </div>
-          <div>
-            <Label>תוקף (לא חובה)</Label>
-            <Input
-              type="date"
-              value={form.expiry_date}
-              onChange={e => handleChange("expiry_date", e.target.value)}
-            />
-          </div>
+          <ExpiryDatePicker
+            value={form.expiry_date}
+            onChange={(value) => handleChange("expiry_date", value)}
+            label="תוקף"
+            required={false}
+          />
           <div>
             <Label>ספק</Label>
             <Input value={form.supplier} onChange={e => handleChange("supplier", e.target.value)} />
@@ -127,4 +126,3 @@ export default function AddInventoryBatchDialog({ onAdded }: Props) {
     </Dialog>
   );
 }
-

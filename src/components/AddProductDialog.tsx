@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import BarcodeScannerDialog from "./BarcodeScannerDialog";
+import ExpiryDatePicker from "./ExpiryDatePicker";
 import { BarcodeCache } from "@/utils/barcodeCache";
 import { ScanBarcode } from "lucide-react";
 
@@ -19,6 +20,7 @@ export interface Product {
   supplier: string;
   minStock: number;
   price: number;
+  expiryDate?: string | null;
 }
 
 const AddProductDialog: React.FC<AddProductDialogProps> = ({ onAdd }) => {
@@ -31,6 +33,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ onAdd }) => {
     minStock: 1,
     quantity: "",
     price: 0,
+    expiryDate: "",
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,6 +111,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ onAdd }) => {
       quantity: Number(product.quantity),
       minStock: Number(product.minStock),
       price: Number(product.price),
+      expiryDate: product.expiryDate || null,
     };
     
     // Add to cache for future use
@@ -121,7 +125,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ onAdd }) => {
     
     onAdd(toAdd);
     setOpen(false);
-    setProduct({ barcode: "", name: "", supplier: "", minStock: 1, quantity: "", price: 0 });
+    setProduct({ barcode: "", name: "", supplier: "", minStock: 1, quantity: "", price: 0, expiryDate: "" });
     toast({ title: "המוצר נוסף בהצלחה!" });
   };
 
@@ -159,6 +163,13 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ onAdd }) => {
           <Input type="number" min={0} placeholder="כמות התחלתית" name="quantity" value={product.quantity} onChange={handleChange} />
           <Input type="number" min={0} step="0.01" placeholder="מחיר ליחידה" name="price" value={product.price} onChange={handleChange} />
           <Input type="number" min={1} placeholder="מלאי מינימום (התראה)" name="minStock" value={product.minStock} onChange={handleChange} />
+          
+          <ExpiryDatePicker
+            value={product.expiryDate || ""}
+            onChange={(value) => setProduct(prev => ({ ...prev, expiryDate: value }))}
+            label="תאריך תפוגה"
+            required={false}
+          />
         </div>
         <DialogFooter>
           <Button onClick={handleAdd}>הוסף</Button>
