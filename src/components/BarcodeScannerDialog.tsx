@@ -2,7 +2,7 @@
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Html5Qrcode } from "html5-qrcode";
+import { BrowserMultiFormatReader, NotFoundException } from "@zxing/browser";
 
 interface BarcodeScannerDialogProps {
   open: boolean;
@@ -18,21 +18,27 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
   const [scanning, setScanning] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState(false);
-  const scannerRef = React.useRef<Html5Qrcode | null>(null);
-  const qrCodeRegionId = "html5qr-code-full-region";
+  const [lastDetectionTime, setLastDetectionTime] = React.useState(0);
+  const scannerRef = React.useRef<BrowserMultiFormatReader | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const streamRef = React.useRef<MediaStream | null>(null);
 
   const stopScanning = async () => {
     console.log("Stopping scanner...");
     
     if (scannerRef.current) {
       try {
-        await scannerRef.current.stop();
-        await scannerRef.current.clear();
-        console.log("Scanner stopped and cleared successfully");
+        scannerRef.current.reset();
+        console.log("Scanner reset successfully");
       } catch (err) {
-        console.log("Error stopping scanner:", err);
+        console.log("Error resetting scanner:", err);
       }
       scannerRef.current = null;
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
     }
     
     setScanning(false);
@@ -41,62 +47,65 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
   };
 
   const startScanning = async () => {
-    console.log("=== STARTING BARCODE SCANNER ===");
+    console.log("=== STARTING ZXING BARCODE SCANNER ===");
     setError(null);
     setSuccess(false);
     setScanning(true);
+    setLastDetectionTime(0);
 
     try {
-      const scanner = new Html5Qrcode(qrCodeRegionId);
-      scannerRef.current = scanner;
+      if (!videoRef.current) {
+        throw new Error("Video element not found");
+      }
 
-      // Enhanced configuration for better accuracy
-      const config = {
-        fps: 15, // Increased FPS for better detection
-        qrbox: { width: 280, height: 120 }, // Slightly larger scanning area
-        aspectRatio: 2.3, // Better ratio for barcodes
-        disableFlip: false, // Allow image flipping for better detection
-        videoConstraints: {
-          facingMode: "environment"
-        },
-        formatsToSupport: [
-          "EAN_13", "EAN_8", "CODE_128", "CODE_39", "UPC_A", "UPC_E", 
-          "ITF", "CODE_93", "CODABAR", "RSS_14", "RSS_EXPANDED"
-        ]
+      const codeReader = new BrowserMultiFormatReader();
+      scannerRef.current = codeReader;
+
+      // Get video stream with enhanced constraints
+      const constraints = {
+        video: {
+          facingMode: "environment",
+          width: { ideal: 1280, min: 640 },
+          height: { ideal: 720, min: 480 },
+          focusMode: "continuous",
+          exposureMode: "continuous"
+        }
       };
 
-      await scanner.start(
-        { 
-          facingMode: "environment"
-        },
-        config,
-        (decodedText, decodedResult) => {
-          console.log("=== BARCODE DETECTED ===");
-          console.log("Detected code:", decodedText);
-          console.log("Format:", decodedResult.result?.format);
-          
-          // Show success animation
-          setSuccess(true);
-          
-          // Stop scanning and close after a brief delay
-          setTimeout(() => {
-            stopScanning();
-            onDetected(decodedText);
-            onClose();
-          }, 500);
-        },
-        (errorMessage) => {
-          // Only show critical errors, not "no barcode found" messages
-          if (!errorMessage.includes("NotFoundException") && 
-              !errorMessage.includes("No MultiFormat Readers") &&
-              !errorMessage.includes("No code found") &&
-              !errorMessage.includes("NotFoundError")) {
-            console.log("Scan error:", errorMessage);
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+      videoRef.current.srcObject = stream;
+
+      console.log("Video stream started, beginning continuous decode...");
+
+      // Start continuous decoding - like Open Food Facts
+      codeReader.decodeFromVideoDevice(undefined, videoRef.current, (result, error) => {
+        if (result) {
+          const now = Date.now();
+          // Prevent duplicate detections within 2 seconds
+          if (now - lastDetectionTime > 2000) {
+            console.log("=== BARCODE DETECTED ===");
+            console.log("Detected code:", result.getText());
+            console.log("Format:", result.getBarcodeFormat());
+            
+            setLastDetectionTime(now);
+            setSuccess(true);
+            
+            // Stop scanning and close after success animation
+            setTimeout(() => {
+              stopScanning();
+              onDetected(result.getText());
+              onClose();
+            }, 800);
           }
         }
-      );
+        
+        if (error && !(error instanceof NotFoundException)) {
+          console.log("Scan error (non-critical):", error.message);
+        }
+      });
 
-      console.log("=== SCANNER STARTED SUCCESSFULLY ===");
+      console.log("=== ZXING SCANNER STARTED SUCCESSFULLY ===");
       
     } catch (err: any) {
       console.error("=== SCANNER ERROR ===", err);
@@ -122,7 +131,6 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
 
   React.useEffect(() => {
     if (open) {
-      // Small delay to ensure DOM is ready
       setTimeout(() => {
         startScanning();
       }, 100);
@@ -139,42 +147,57 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent dir="rtl" className="max-w-md">
         <DialogHeader>
-          <DialogTitle>סרוק ברקוד עם המצלמה</DialogTitle>
+          <DialogTitle>סרוק ברקוד - זיהוי מיידי</DialogTitle>
         </DialogHeader>
         
         <div className="flex flex-col items-center">
           {!error && (
             <div className="w-full min-h-80 bg-black rounded-lg flex items-center justify-center relative overflow-hidden">
-              <div id={qrCodeRegionId} className="w-full h-full" />
+              <video
+                ref={videoRef}
+                className="w-full h-full object-cover"
+                autoPlay
+                playsInline
+                muted
+              />
               
-              {/* Visual guidance frame */}
+              {/* Enhanced visual guidance frame */}
               {scanning && !success && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  {/* Scanning frame overlay */}
+                  {/* Animated scanning frame */}
                   <div className="relative">
-                    <div className="w-64 h-32 border-2 border-white border-dashed rounded-lg opacity-80">
-                      <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-green-400 rounded-tl-lg"></div>
-                      <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-green-400 rounded-tr-lg"></div>
-                      <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-green-400 rounded-bl-lg"></div>
-                      <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-green-400 rounded-br-lg"></div>
+                    <div className="w-72 h-36 border-2 border-white border-dashed rounded-lg opacity-90 animate-pulse">
+                      {/* Corner markers */}
+                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-lg animate-pulse"></div>
+                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-lg animate-pulse"></div>
+                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-lg animate-pulse"></div>
+                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-green-400 rounded-br-lg animate-pulse"></div>
+                      
+                      {/* Scanning line animation */}
+                      <div className="absolute top-0 left-0 w-full h-1 bg-green-400 animate-[slide-down_2s_ease-in-out_infinite]" 
+                           style={{
+                             animation: 'slide-down 2s ease-in-out infinite',
+                             backgroundImage: 'linear-gradient(90deg, transparent, #4ade80, transparent)'
+                           }}></div>
                     </div>
                   </div>
                   
-                  {/* Instructions */}
-                  <div className="absolute text-white text-center bottom-4 bg-black bg-opacity-70 px-4 py-3 rounded-lg mx-4">
-                    <div className="text-sm font-medium">כוון את הברקוד למסגרת</div>
-                    <div className="text-xs mt-1 opacity-90">תמיכה: EAN-13, UPC, Code128, Code39, QR</div>
-                    <div className="text-xs mt-1 opacity-75">💡 וודא תאורה טובה למיקוד אוטומטי</div>
+                  {/* Enhanced instructions */}
+                  <div className="absolute text-white text-center bottom-4 bg-black bg-opacity-80 px-4 py-3 rounded-lg mx-4">
+                    <div className="text-sm font-medium">📱 כוון את הברקוד למסגרת</div>
+                    <div className="text-xs mt-1 opacity-90">🔍 זיהוי אוטומטי - ללא צורך בלחיצה</div>
+                    <div className="text-xs mt-1 opacity-75">💡 וודא תאורה טובה למיקוד מושלם</div>
                   </div>
                 </div>
               )}
 
-              {/* Success animation */}
+              {/* Success animation - like Open Food Facts */}
               {success && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-green-600 bg-opacity-20">
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-green-600 bg-opacity-30">
                   <div className="text-center animate-scale-in">
-                    <div className="text-6xl mb-2">✅</div>
-                    <div className="text-white text-lg font-bold">ברקוד נסרק בהצלחה!</div>
+                    <div className="text-7xl mb-3 animate-bounce">✅</div>
+                    <div className="text-white text-xl font-bold drop-shadow-lg">ברקוד זוהה בהצלחה!</div>
+                    <div className="text-green-200 text-sm mt-2">מעבד מידע...</div>
                   </div>
                 </div>
               )}
@@ -184,15 +207,16 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
           {error && (
             <div className="w-full h-80 bg-black rounded-lg flex items-center justify-center">
               <div className="text-center px-6 py-4">
-                <div className="text-4xl mb-4">⚠️</div>
+                <div className="text-5xl mb-4">⚠️</div>
                 <div className="text-red-400 text-base font-medium leading-6 mb-4">{error}</div>
                 <div className="text-gray-400 text-sm">
-                  💡 טיפים לסריקה טובה יותר:
+                  💡 טיפים לסריקה מושלמת:
                   <ul className="text-right mt-2 space-y-1 text-xs">
-                    <li>• וודא תאורה טובה</li>
+                    <li>• וודא תאורה טובה ויציבה</li>
                     <li>• החזק את המכשיר יציב</li>
                     <li>• נקה את עדשת המצלמה</li>
-                    <li>• הצמד את הברקוד למסגרת</li>
+                    <li>• הצמד את הברקוד למסגרת הירוקה</li>
+                    <li>• נסה זוויות שונות אם הברקוד מעוקם</li>
                   </ul>
                 </div>
               </div>
@@ -203,21 +227,21 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
             {error 
               ? "בדוק הרשאות מצלמה בדפדפן ונסה שוב" 
               : success
-              ? "ברקוד זוהה בהצלחה - סוגר חלון..."
+              ? "🎉 ברקוד זוהה בהצלחה - מעבד נתונים..."
               : scanning
-              ? "מחפש ברקוד - כוון את המצלמה לברקוד במסגרת"
-              : "מכין סורק ברקוד עם מיקוד אוטומטי..."
+              ? "🔍 מחפש ברקוד - זיהוי אוטומטי פעיל"
+              : "🚀 מכין סורק ברקוד מתקדם עם זיהוי מיידי..."
             }
           </div>
         </div>
         
         <DialogFooter className="flex gap-2">
           <Button variant="secondary" onClick={onClose}>
-            ביטול
+            סגור
           </Button>
           {error && (
             <Button variant="default" onClick={startScanning}>
-              נסה שוב
+              🔄 נסה שוב
             </Button>
           )}
         </DialogFooter>
