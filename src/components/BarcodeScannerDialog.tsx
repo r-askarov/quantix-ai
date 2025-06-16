@@ -2,7 +2,8 @@
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BrowserMultiFormatReader, NotFoundException } from "@zxing/browser";
+import { BrowserMultiFormatReader } from "@zxing/browser";
+import { NotFoundException } from "@zxing/library";
 
 interface BarcodeScannerDialogProps {
   open: boolean;
@@ -28,10 +29,11 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
     
     if (scannerRef.current) {
       try {
-        scannerRef.current.reset();
-        console.log("Scanner reset successfully");
+        // Stop the decoding process
+        scannerRef.current.stopContinuousDecode();
+        console.log("Scanner stopped successfully");
       } catch (err) {
-        console.log("Error resetting scanner:", err);
+        console.log("Error stopping scanner:", err);
       }
       scannerRef.current = null;
     }
@@ -66,9 +68,7 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
         video: {
           facingMode: "environment",
           width: { ideal: 1280, min: 640 },
-          height: { ideal: 720, min: 480 },
-          focusMode: "continuous",
-          exposureMode: "continuous"
+          height: { ideal: 720, min: 480 }
         }
       };
 
