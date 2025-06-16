@@ -2,7 +2,7 @@
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { Html5Qrcode } from "html5-qrcode";
 
 interface BarcodeScannerDialogProps {
   open: boolean;
@@ -17,18 +17,19 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
 }) => {
   const [scanning, setScanning] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const scannerRef = React.useRef<Html5QrcodeScanner | null>(null);
+  const scannerRef = React.useRef<Html5Qrcode | null>(null);
   const qrCodeRegionId = "html5qr-code-full-region";
 
-  const stopScanning = () => {
+  const stopScanning = async () => {
     console.log("Stopping scanner...");
     
     if (scannerRef.current) {
       try {
-        scannerRef.current.clear();
-        console.log("Scanner cleared successfully");
+        await scannerRef.current.stop();
+        await scannerRef.current.clear();
+        console.log("Scanner stopped and cleared successfully");
       } catch (err) {
-        console.log("Error clearing scanner:", err);
+        console.log("Error stopping scanner:", err);
       }
       scannerRef.current = null;
     }
@@ -37,36 +38,30 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
     setError(null);
   };
 
-  const startScanning = () => {
+  const startScanning = async () => {
     console.log("=== STARTING BARCODE SCANNER ===");
     setError(null);
     setScanning(true);
 
     try {
+      const scanner = new Html5Qrcode(qrCodeRegionId);
+      scannerRef.current = scanner;
+
       const config = {
         fps: 10,
         qrbox: { width: 250, height: 100 },
-        aspectRatio: 1.7777778,
         formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.ITF,
-          Html5QrcodeSupportedFormats.CODE_93
+          "EAN_13", "EAN_8", "CODE_128", "CODE_39", "UPC_A", "UPC_E", "ITF", "CODE_93"
         ]
       };
 
-      const scanner = new Html5QrcodeScanner(qrCodeRegionId, config, false);
-      scannerRef.current = scanner;
-
-      scanner.render(
+      await scanner.start(
+        { facingMode: "environment" }, // Use back camera
+        config,
         (decodedText, decodedResult) => {
           console.log("=== BARCODE DETECTED ===");
           console.log("Detected code:", decodedText);
-          console.log("Format:", decodedResult.result.format);
+          console.log("Format:", decodedResult.result?.format);
           
           stopScanning();
           onDetected(decodedText);
