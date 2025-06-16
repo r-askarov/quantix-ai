@@ -23,21 +23,28 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
   const scannerRef = React.useRef<BrowserMultiFormatReader | null>(null);
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const streamRef = React.useRef<MediaStream | null>(null);
+  const controlsRef = React.useRef<any>(null);
 
   const stopScanning = async () => {
     console.log("Stopping scanner...");
     
-    if (scannerRef.current) {
+    // Stop the scanning controls if they exist
+    if (controlsRef.current) {
       try {
-        // Stop the decoding process
-        scannerRef.current.reset();
-        console.log("Scanner stopped successfully");
+        controlsRef.current.stop();
+        console.log("Scanner controls stopped successfully");
       } catch (err) {
-        console.log("Error stopping scanner:", err);
+        console.log("Error stopping scanner controls:", err);
       }
+      controlsRef.current = null;
+    }
+
+    // Clean up scanner reference
+    if (scannerRef.current) {
       scannerRef.current = null;
     }
 
+    // Stop media stream
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -63,23 +70,10 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
       const codeReader = new BrowserMultiFormatReader();
       scannerRef.current = codeReader;
 
-      // Get video stream with enhanced constraints
-      const constraints = {
-        video: {
-          facingMode: "environment",
-          width: { ideal: 1280, min: 640 },
-          height: { ideal: 720, min: 480 }
-        }
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-      videoRef.current.srcObject = stream;
-
       console.log("Video stream started, beginning continuous decode...");
 
-      // Start continuous decoding - like Open Food Facts
-      codeReader.decodeFromVideoDevice(undefined, videoRef.current, (result, error) => {
+      // Start continuous decoding - this returns controls to stop the process
+      const controls = await codeReader.decodeFromVideoDevice(undefined, videoRef.current, (result, error) => {
         if (result) {
           const now = Date.now();
           // Prevent duplicate detections within 2 seconds
@@ -104,6 +98,9 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
           console.log("Scan error (non-critical):", error.message);
         }
       });
+
+      // Store the controls to stop scanning later
+      controlsRef.current = controls;
 
       console.log("=== ZXING SCANNER STARTED SUCCESSFULLY ===");
       
