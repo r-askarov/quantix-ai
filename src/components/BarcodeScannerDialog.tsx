@@ -2,7 +2,7 @@
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BrowserMultiFormatReader, BarcodeFormat } from "@zxing/browser";
+import { BrowserMultiFormatReader } from "@zxing/browser";
 
 interface BarcodeScannerDialogProps {
   open: boolean;
@@ -25,7 +25,15 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
   const stopScanning = () => {
     console.log("Stopping scanner...");
     
-    // אין צורך ב-reset() - פשוט נעצור את הזרם
+    if (readerRef.current) {
+      try {
+        readerRef.current.reset();
+        console.log("Reader reset successfully");
+      } catch (err) {
+        console.log("Error resetting reader:", err);
+      }
+    }
+    
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => {
         track.stop();
@@ -52,18 +60,16 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
     try {
       console.log("Initializing ZXing scanner...");
       
-      // יצירת קורא ברקודים עם תמיכה בפורמטים שונים
       const codeReader = new BrowserMultiFormatReader();
       readerRef.current = codeReader;
       
       console.log("Requesting camera access...");
       
-      // בקשת גישה למצלמה
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: "environment", // מצלמה אחורית
-          width: { ideal: 640 },
-          height: { ideal: 480 }
+          facingMode: "environment",
+          width: { ideal: 1280, min: 640 },
+          height: { ideal: 720, min: 480 }
         }
       });
       
@@ -74,25 +80,25 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
         throw new Error("Video element not found");
       }
       
+      videoRef.current.srcObject = stream;
+      
       setLoading(false);
       setScanning(true);
       
-      // התחלת סריקה רציפה
       try {
-        await codeReader.decodeFromVideoDevice(undefined, videoRef.current, (result, error) => {
+        const result = await codeReader.decodeFromVideoDevice(undefined, videoRef.current, (result, error) => {
           if (result) {
             console.log("=== BARCODE DETECTED ===");
             console.log("Detected code:", result.getText());
             console.log("Format:", result.getBarcodeFormat());
             
-            // עצירת הסריקה והחזרת התוצאה
             stopScanning();
             onDetected(result.getText());
             onClose();
           }
           
-          if (error && !(error instanceof Error && error.name === 'NotFoundException')) {
-            console.error("Scan error:", error);
+          if (error && !(error.name === 'NotFoundException')) {
+            console.log("Scan error (not critical):", error.message);
           }
         });
         
@@ -145,7 +151,6 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
         
         <div className="flex flex-col items-center">
           <div className="w-full h-72 bg-black rounded-lg flex items-center justify-center relative overflow-hidden">
-            {/* וידיאו לתצוגה */}
             <video
               ref={videoRef}
               className={`w-full h-full object-cover ${scanning ? 'block' : 'hidden'}`}
@@ -154,7 +159,6 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
               muted
             />
             
-            {/* מסך טעינה */}
             {loading && (
               <div className="text-white text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
@@ -162,7 +166,6 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
               </div>
             )}
             
-            {/* הודעת שגיאה */}
             {error && (
               <div className="text-red-400 text-center px-4">
                 <div className="text-2xl mb-2">⚠️</div>
@@ -170,13 +173,12 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
               </div>
             )}
             
-            {/* מסגרת סריקה */}
             {scanning && !loading && !error && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="border-2 border-green-400 w-64 h-64 rounded-lg animate-pulse"></div>
+                <div className="border-2 border-green-400 w-64 h-16 rounded-lg animate-pulse"></div>
                 <div className="absolute text-white text-center bottom-4 bg-black bg-opacity-50 px-4 py-2 rounded">
                   <div className="text-sm">כוון את המצלמה לברקוד</div>
-                  <div className="text-xs mt-1">תמיכה: EAN, UPC, Code128, Code39, QR</div>
+                  <div className="text-xs mt-1">תמיכה: EAN, UPC, Code128, Code39</div>
                 </div>
               </div>
             )}
@@ -188,7 +190,7 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
               : loading 
               ? "טוען מצלמה..."
               : scanning
-              ? "מחפש ברקוד - כוון את המצלמה לברקוד רגיל או QR"
+              ? "מחפש ברקוד - כוון את המצלמה לברקוד"
               : "מכין סורק ברקוד..."
             }
           </div>

@@ -23,7 +23,7 @@ export interface Product {
   supplier: string;
   minStock: number;
   price: number;
-  expiryDate?: string | null; // נשמר, כבר קיים
+  expiryDate?: string | null;
 }
 
 const initialProducts: Product[] = [
@@ -38,7 +38,7 @@ type SortOrder = "asc" | "desc";
 
 import { useInventoryBatches } from "@/hooks/useInventoryBatches";
 import AddInventoryBatchDialog from "@/components/AddInventoryBatchDialog";
-import { InventoryBatch } from "@/types/inventory"; // <-- Fix: add inventory type import
+import { InventoryBatch } from "@/types/inventory";
 
 const Products = () => {
   const [products, setProducts] = React.useState<Product[]>(initialProducts);
@@ -54,85 +54,101 @@ const Products = () => {
     return Array.from(new Set(products.map((p) => p.supplier).filter(Boolean)));
   }, [products]);
 
-  // נטען מה-hock
+  // נטען מה-hook
   const { batches, loading, reload } = useInventoryBatches();
 
   /**
-   * מוצרים מאוחדים לפי ברקוד,
-   * עם פירוט אצוות/תפוגות בעמודת הערות.
+   * מוצרים מאוחדים - כעת נשמור על המוצרים הקיימים ונוסיף מידע מהאצוות בלבד
    */
   const mergedProducts = React.useMemo(() => {
-    // מיפוי אצוות לפי ברקוד (קיבוץ כל האצוות לאותו מוצר)
+    // מיפוי אצוות לפי ברקוד
     const batchesByBarcode = batches.reduce<Record<string, InventoryBatch[]>>((acc, batch) => {
       if (!acc[batch.barcode]) acc[batch.barcode] = [];
       acc[batch.barcode].push(batch);
       return acc;
     }, {});
-    // רשימת ברקודים מתוך האצוות (db)
-    const batchBarcodes = new Set(Object.keys(batchesByBarcode));
-    // מאחדים מוצרים מאצוות
-    const batchProducts: (Product & {
-      remarks?: string;
-    })[] = Object.entries(batchesByBarcode).map(([barcode, batchArr]) => {
-      // כמות כוללת
-      const totalQty = batchArr.reduce((sum, b) => sum + b.quantity, 0);
 
-      // חישוב מדויק של כמויות לפי תאריך תפוגה
-      const expiryCount: Record<string, number> = {};
-      batchArr.forEach(b => {
-        // נציג "ללא תפוגה" במפתח נפרד
-        const key = b.expiry_date ? b.expiry_date.slice(0, 10) : "ללא תפוגה";
-        expiryCount[key] = (expiryCount[key] || 0) + b.quantity;
-      });
-      // בונים טקסט לכל expiry - כל תוקף, כמה פריטים
-      const remarks = Object.entries(expiryCount)
-        .map(([dt, qty]) =>
-          dt === "ללא תפוגה"
-            ? `${qty} מוצרים ללא תפוגה`
-            : `${qty} מוצרים עם תפוגה ${new Date(dt).toLocaleDateString('he-IL')}`
-        )
-        .join(' | ');
+    // מתחילים עם כל המוצרים הקיימים (manual + initial)
+    const allProducts = [...products];
 
-      // לוקחים ערך אקראי מ-batchArr (למשות שדות שם מוצר/ספק)
-      const b = batchArr[0];
-      // DEBUG: בודק בקונסול מה מוצג במרקס
-      console.log(`[mergedProducts][${barcode}] remarks: ${remarks}`);
+    // עוברים על כל מוצר ומעדכנים אותו עם מידע מהאצוות אם קיים
+    const updatedProducts = allProducts.map(product => {
+      const productBatches = batchesByBarcode[product.barcode];
+      
+      if (productBatches && productBatches.length > 0) {
+        // אם יש אצוות למוצר הזה, נחשב את הכמות הכוללת
+        const totalBatchQuantity = productBatches.reduce((sum, b) => sum + b.quantity, 0);
+        
+        // נבנה מידע על תפוגות
+        const expiryCount: Record<string, number> = {};
+        productBatches.forEach(b => {
+          const key = b.expiry_date ? b.expiry_date.slice(0, 10) : "ללא תפוגה";
+          expiryCount[key] = (expiryCount[key] || 0) + b.quantity;
+        });
+        
+        const remarks = Object.entries(expiryCount)
+          .map(([dt, qty]) =>
+            dt === "ללא תפוגה"
+              ? `${qty} מוצרים ללא תפוגה`
+              : `${qty} מוצרים עם תפוגה ${new Date(dt).toLocaleDateString('he-IL')}`
+          )
+          .join(' | ');
 
+        // נחזיר את המוצר עם כמות מעודכנת ומידע על תפוגות
+        return {
+          ...product,
+          quantity: product.quantity + totalBatchQuantity, // נוסיף את כמות האצוות לכמות הקיימת
+          remarks
+        };
+      }
+      
+      // אם אין אצוות, נחזיר את המוצר כמו שהוא
       return {
-        barcode,
-        name: b.product_name,
-        quantity: totalQty,
-        supplier: b.supplier ?? "",
-        minStock: 0,
-        price: Number(b.unit_price) || 0,
-        expiryDate: null,
-        remarks,
+        ...product,
+        remarks: undefined
       };
     });
-    // מוצרים שנוספו ידנית (products state) שבברקוד שלהם אין אף batch (לא ייעלמו)
-    const manualProducts = products
-      .filter(p => !batchBarcodes.has(p.barcode))
-      .map(p => ({
-        ...p,
-        remarks: undefined
-      }));
-    // מוצרים התחלתיים שלא ב-db ולא ב-manual products
-    const manualBarcodes = new Set(manualProducts.map(p => p.barcode));
-    const oldProducts = initialProducts
-      .filter(p => !batchBarcodes.has(p.barcode) && !manualBarcodes.has(p.barcode))
-      .map(p => ({
-        ...p,
-        expiryDate: null,
-        remarks: undefined
-      }));
 
-    // סדר: קודם אלו שבאו מה-db, אחר כך ידניים, אחר כך ותיקים
-    const merged = [...batchProducts, ...manualProducts, ...oldProducts];
+    // נוסיף מוצרים חדשים מהאצוות שאין להם מוצר קיים
+    const existingBarcodes = new Set(allProducts.map(p => p.barcode));
+    const newProductsFromBatches = Object.entries(batchesByBarcode)
+      .filter(([barcode]) => !existingBarcodes.has(barcode))
+      .map(([barcode, batchArr]) => {
+        const totalQty = batchArr.reduce((sum, b) => sum + b.quantity, 0);
+        
+        const expiryCount: Record<string, number> = {};
+        batchArr.forEach(b => {
+          const key = b.expiry_date ? b.expiry_date.slice(0, 10) : "ללא תפוגה";
+          expiryCount[key] = (expiryCount[key] || 0) + b.quantity;
+        });
+        
+        const remarks = Object.entries(expiryCount)
+          .map(([dt, qty]) =>
+            dt === "ללא תפוגה"
+              ? `${qty} מוצרים ללא תפוגה`
+              : `${qty} מוצרים עם תפוגה ${new Date(dt).toLocaleDateString('he-IL')}`
+          )
+          .join(' | ');
 
-    // מיונים - כרגיל
+        const b = batchArr[0];
+        return {
+          barcode,
+          name: b.product_name,
+          quantity: totalQty,
+          supplier: b.supplier ?? "",
+          minStock: 0,
+          price: Number(b.unit_price) || 0,
+          expiryDate: null,
+          remarks,
+        };
+      });
+
+    const merged = [...updatedProducts, ...newProductsFromBatches];
+    
+    // מיון לפי שם
     merged.sort((a, b) => a.name.localeCompare(b.name, "he"));
     return merged;
-  }, [batches, products, initialProducts]);
+  }, [batches, products]);
 
   // חלת סינונים ומיון
   const filteredProducts = React.useMemo(() => {
