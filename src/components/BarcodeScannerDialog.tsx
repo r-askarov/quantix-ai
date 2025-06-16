@@ -30,7 +30,7 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
     if (scannerRef.current) {
       try {
         // Stop the decoding process
-        scannerRef.current.stopContinuousDecode();
+        scannerRef.current.reset();
         console.log("Scanner stopped successfully");
       } catch (err) {
         console.log("Error stopping scanner:", err);
