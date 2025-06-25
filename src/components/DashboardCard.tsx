@@ -23,7 +23,7 @@ const DashboardCard = ({ title, value, icon, change, color }: DashboardCardProps
       {icon && <span>{icon}</span>}
     </div>
     <span className="text-3xl font-extrabold text-foreground">{value}</span>
-    {change && <span className="text-sm text-muted-foreground mt-2">{change}</span>}
+    {change && <span className="text-sm text-black mt-2">{change}</span>}
   </div>
 );
 

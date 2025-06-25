@@ -14,6 +14,9 @@ import {
 import { Toggle } from "@/components/ui/toggle";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, RotateCcw, ArrowDown, ArrowUp } from "lucide-react";
+import { useTranslation } from "react-i18next";
+
+const RTL_LANGS = ["he", "ar", "fa", "ur"];
 
 // ---- Product type definition updated here ----
 export interface Product {
@@ -254,8 +257,11 @@ const Products = () => {
       sum + (typeof b.unit_price === "number" ? b.unit_price * b.quantity : 0)
     , 0), [batches]);
 
+  const { i18n } = useTranslation();
+  const dir = RTL_LANGS.includes(i18n.language) ? "rtl" : "ltr";
+
   return (
-    <main className="min-h-screen bg-background px-2 sm:px-8 py-8">
+    <main className="min-h-screen bg-background px-8 py-8" dir={dir}>
       {/* טולבר וסינונים */}
       <div className="sticky top-0 z-20 bg-background pb-4 mb-6 flex flex-col-reverse items-stretch gap-2 sm:gap-0 sm:flex-row sm:items-end sm:justify-between border-b">
         <div className="flex flex-wrap gap-2 items-center">
@@ -351,9 +357,6 @@ const Products = () => {
         <div className="bg-muted/60 text-lg font-bold px-4 py-2 rounded shadow border">
           סך שווי מלאי מוצג: <span className="font-mono">{totalStockValue.toLocaleString("he-IL")}</span> <span className="text-base font-normal text-muted-foreground">₪</span>
         </div>
-      </div>
-      <div className="mt-8">
-        <Link to="/" className="text-blue-700 underline text-base">חזרה לדשבורד</Link>
       </div>
     </main>
   );

@@ -13,8 +13,11 @@ import SupplierSelectionDialog from "@/components/SupplierSelectionDialog";
 import ProductSelectionOrderDialog from "@/components/ProductSelectionOrderDialog";
 import OrderSummaryDialog from "@/components/OrderSummaryDialog";
 import { Button } from "@/components/ui/button";
-import { Plus, Truck, ClipboardList, Archive } from "lucide-react";
+import { Plus, Truck, ClipboardList, Archive, Divide, DivideSquare } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTranslation } from "react-i18next";
+
+const RTL_LANGS = ["he", "ar", "fa", "ur"];
 
 export interface ShippingItem {
   name: string;
@@ -43,6 +46,8 @@ const Orders = () => {
   const [selectedOrderId, setSelectedOrderId] = React.useState<string | null>(null);
   const [barcodeDatabase, setBarcodeDatabase] = React.useState<Record<string, BarcodeProduct>>({});
   const [editingOrderId, setEditingOrderId] = React.useState<string | null>(null);
+  const { i18n } = useTranslation();
+  const dir = RTL_LANGS.includes(i18n.language) ? "rtl" : "ltr";
 
   // טעינת מאגר ברקודים מ-localStorage
   React.useEffect(() => {
@@ -99,7 +104,7 @@ const Orders = () => {
   };
 
   return (
-    <main className="min-h-screen bg-background px-8 py-8">
+    <main className="min-h-screen bg-background px-8 py-8" dir={dir}>
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-primary mb-2">ניהול רכש וקליטת סחורה</h1>
@@ -159,10 +164,6 @@ const Orders = () => {
           )}
         </TabsContent>
       </Tabs>
-
-      <div className="mt-8">
-        <Link to="/" className="text-blue-700 underline text-base">חזרה לדשבורד</Link>
-      </div>
 
       {/* Dialogs */}
       <SupplierSelectionDialog

@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Link } from "react-router-dom";
 import SupplierCard from "@/components/SupplierCard";
@@ -7,6 +6,10 @@ import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import i18n from '../i18n'; // import your i18n config
+import { useTranslation } from "react-i18next";
+
+const RTL_LANGS = ["he", "ar", "fa", "ur"];
 
 interface BarcodeProduct {
   barcode: string;
@@ -45,6 +48,8 @@ const Suppliers = () => {
   const [search, setSearch] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [syncing, setSyncing] = React.useState(false);
+  const { i18n } = useTranslation();
+  const dir = RTL_LANGS.includes(i18n.language) ? "rtl" : "ltr";
 
   const suppliers = React.useMemo(() => {
     const set = new Set<string>();
@@ -144,7 +149,7 @@ const Suppliers = () => {
   };
 
   return (
-    <main className="min-h-screen bg-background px-8 py-8">
+    <main className="min-h-screen bg-background px-8 py-8" dir={dir}>
       <div className="mb-6">
         <h1 className="text-3xl font-black text-primary mb-2">ספקים</h1>
         <p className="text-muted-foreground">ניהול הספקים שמספקים לך את הסחורה.</p>
@@ -164,9 +169,6 @@ const Suppliers = () => {
               className="pr-10"
             />
           </div>
-        </div>
-        <div className="mt-4">
-          <Link to="/" className="text-blue-700 underline text-base">חזרה לדשבורד</Link>
         </div>
       </div>
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3 mt-8">

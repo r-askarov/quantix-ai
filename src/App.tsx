@@ -1,3 +1,4 @@
+import "../src/i18n";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,6 +15,7 @@ import Suppliers from "./pages/Suppliers";
 import Dashboard from "./pages/Dashboard";
 import BarcodeDatabase from "./pages/BarcodeDatabase";
 import SupplierDetails from "./pages/SupplierDetails";
+import Navbar from "./components/Navbar";
 
 const App = () => {
   // Create QueryClient inside the component to avoid hook issues
@@ -32,6 +34,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <Navbar />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<Dashboard />} />

@@ -1,11 +1,10 @@
-
 import DashboardCard from "@/components/DashboardCard";
 import InventoryTable from "@/components/InventoryTable";
 import StatsChart from "@/components/StatsChart";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import * as React from "react";
-import HeadNav from "@/components/HeadNav";
+import i18n from '../i18n';
 
 const Index = () => {
   React.useEffect(() => {
@@ -15,10 +14,9 @@ const Index = () => {
 
   return (
     <main className="min-h-screen bg-background flex flex-col gap-10 px-8 py-8"  dir="rtl" lang="he">
-      <HeadNav />
       {/* Header */}
       <header className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-2 select-none">
-        <h1 className="text-4xl font-black tracking-tight text-primary mb-1">Quantix – ניהול מלאי חכם</h1>
+        <h1 className="text-4xl font-black tracking-tight text-primary mb-1">Revalto – ניהול מלאי חכם</h1>
       </header>
       {/* Cards */}
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 w-full">

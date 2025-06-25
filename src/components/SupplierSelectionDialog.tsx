@@ -29,7 +29,7 @@ const SupplierSelectionDialog: React.FC<SupplierSelectionDialogProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = React.useState("");
 
-  // استخراج רשימת ספקים ייחודיים מהמאגר
+  // רשימת ספקים ייחודיים מהמאגר
   const suppliers = React.useMemo(() => {
     const supplierSet = new Set<string>();
     Object.values(barcodeDatabase).forEach(product => {

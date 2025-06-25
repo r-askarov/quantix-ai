@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -7,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, Package, AlertCircle } from "lucide-react";
 import { BarcodeDatabase as BarcodeDB } from "@/components/ExcelImportDialog";
+import { useTranslation } from "react-i18next";
+
+const RTL_LANGS = ["he", "ar", "fa", "ur"];
 
 const BarcodeDatabase = () => {
   const [searchBarcode, setSearchBarcode] = React.useState("");
@@ -15,6 +17,8 @@ const BarcodeDatabase = () => {
     found: boolean;
     product?: { name: string; supplier?: string; minStock?: number };
   } | null>(null);
+  const { i18n } = useTranslation();
+  const dir = RTL_LANGS.includes(i18n.language) ? "rtl" : "ltr";
 
   // טעינת מאגר ברקודים מ-localStorage אם קיים
   React.useEffect(() => {
@@ -50,7 +54,7 @@ const BarcodeDatabase = () => {
   const databaseSize = Object.keys(barcodeDatabase).length;
 
   return (
-    <main className="min-h-screen bg-background px-8 py-8">
+    <main className="min-h-screen bg-background px-8 py-8" dir={dir}>
       <div className="mb-6">
         <h1 className="text-3xl font-black text-primary mb-2">מאגר ברקודים</h1>
         <p className="text-muted-foreground">חיפוש ובדיקת קיומם של ברקודים ומוצרים במאגר.</p>
@@ -187,12 +191,6 @@ const BarcodeDatabase = () => {
             </CardContent>
           </Card>
         )}
-      </div>
-
-      <div className="mt-8">
-        <Link to="/products" className="text-blue-700 underline text-base">
-          חזרה לעמוד מוצרים
-        </Link>
       </div>
     </main>
   );

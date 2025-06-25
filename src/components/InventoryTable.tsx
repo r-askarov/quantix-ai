@@ -54,7 +54,7 @@ const InventoryTable = () => {
     <div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
         <input
-          className="border bg-muted px-3 py-2 rounded-md w-full sm:w-56 outline-none focus:ring-2 focus:ring-primary"
+          className="border bg-muted px-3 py-2 rounded-md w-full sm:w-60 outline-none focus:ring-2 focus:ring-primary"
           placeholder="חפש לפי פריט, ברקוד או מיקום"
           value={search}
           dir="rtl"
