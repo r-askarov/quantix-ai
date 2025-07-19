@@ -21,7 +21,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({ products }) => {
             <TableHead className="text-right">ספק</TableHead>
             <TableHead className="text-right">מלאי מינימום</TableHead>
             <TableHead className="text-right">מחיר</TableHead>
-            <TableHead className="text-right">הערות</TableHead>
+            <TableHead className="text-right">תאריך תפוגה</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

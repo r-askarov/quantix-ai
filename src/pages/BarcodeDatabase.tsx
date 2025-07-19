@@ -197,3 +197,4 @@ const BarcodeDatabase = () => {
 };
 
 export default BarcodeDatabase;
+

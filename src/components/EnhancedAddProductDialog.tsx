@@ -1,12 +1,10 @@
-
 import * as React from "react";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { CalendarIcon, Barcode as BarcodeIcon } from "lucide-react";
-import BarcodeScannerDialog from "./BarcodeScannerDialog";
+import { CalendarIcon } from "lucide-react";
 import { Product } from "@/pages/Products";
 
 // טעינה של DatePicker עדין - ניתן לעטוף ב-Input במידת הצורך
@@ -28,14 +26,18 @@ function DateInput({ value, onChange }: { value: string | null; onChange: (val: 
 const EnhancedAddProductDialog = ({
   onAdd,
   barcodeDatabase,
+  open = false,
+  onOpenChange,
+  initialBarcode = ""
 }: {
   onAdd: (product: Product) => void;
   barcodeDatabase: any;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  initialBarcode?: string;
 }) => {
-  const [open, setOpen] = useState(false);
-  const [scannerOpen, setScannerOpen] = useState(false);
   const [product, setProduct] = useState<Partial<Product>>({
-    barcode: "",
+    barcode: initialBarcode,
     name: "",
     supplier: "",
     minStock: 1,
@@ -43,6 +45,14 @@ const EnhancedAddProductDialog = ({
     quantity: 0,
     expiryDate: null,
   });
+  const [dialogOpen, setDialogOpen] = useState(open);
+
+  React.useEffect(() => {
+    setDialogOpen(open);
+    if (initialBarcode) {
+      setProduct((prev) => ({ ...prev, barcode: initialBarcode }));
+    }
+  }, [open, initialBarcode]);
 
   // השלמה אוטומטית ממאגר הברקודים
   const handleBarcodeChangeAndAutoFill = (barcodeValue: string) => {
@@ -78,13 +88,6 @@ const EnhancedAddProductDialog = ({
     }
   };
 
-  // סיום סריקת ברקוד
-  const handleBarcodeScan = (code: string) => {
-    handleBarcodeChangeAndAutoFill(code);
-    toast({ title: "ברקוד נסרק בהצלחה!" });
-    setScannerOpen(false);
-  };
-
   // ביצוע שליחה
   const handleSubmit = () => {
     if (!product.barcode || !product.name || !product.supplier || !product.quantity || !product.price) {
@@ -101,7 +104,8 @@ const EnhancedAddProductDialog = ({
       expiryDate: product.expiryDate ?? null,
     };
     onAdd(toAdd);
-    setOpen(false);
+    setDialogOpen(false);
+    if (onOpenChange) onOpenChange(false);
     setProduct({
       barcode: "",
       name: "",
@@ -121,44 +125,45 @@ const EnhancedAddProductDialog = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="default">הוסף מוצר חדש</Button>
-      </DialogTrigger>
+    <Dialog open={dialogOpen} onOpenChange={val => {
+      setDialogOpen(val);
+      if (onOpenChange) onOpenChange(val);
+    }}>
       <DialogContent dir="rtl">
         <DialogHeader>
           <DialogTitle>הוספת מוצר חדש</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-1">
+            <label className="block text-right text-xs mb-1">ברקוד</label>
             <Input
-              placeholder="ברקוד"
               name="barcode"
               value={product.barcode || ""}
               onChange={handleChange}
             />
-            <Button
-              variant="outline"
-              type="button"
-              className="whitespace-nowrap flex gap-1 items-center"
-              onClick={() => setScannerOpen(true)}
-            >
-              <BarcodeIcon className="w-5 h-5" />
-              סרוק ברקוד
-            </Button>
-            <BarcodeScannerDialog
-              open={scannerOpen}
-              onClose={() => setScannerOpen(false)}
-              onDetected={handleBarcodeScan}
-            />
           </div>
-          <Input placeholder="שם מוצר" name="name" value={product.name || ""} onChange={handleChange} />
-          <Input placeholder="ספק" name="supplier" value={product.supplier || ""} onChange={handleChange} />
-          <Input type="number" min={0} placeholder="כמות התחלתית" name="quantity" value={product.quantity || ""} onChange={handleChange} />
-          <Input type="number" min={1} placeholder="מלאי מינימום (התראה)" name="minStock" value={product.minStock || ""} onChange={handleChange} />
-          <Input type="number" min={0} placeholder="מחיר ליחידה" name="price" value={product.price || ""} onChange={handleChange} />
+          <div className="flex flex-col gap-1">
+            <label className="block text-right text-xs mb-1">שם מוצר</label>
+            <Input name="name" value={product.name || ""} onChange={handleChange} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="block text-right text-xs mb-1">ספק</label>
+            <Input name="supplier" value={product.supplier || ""} onChange={handleChange} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="block text-right text-xs mb-1">כמות התחלתית</label>
+            <Input type="number" min={0} name="quantity" value={product.quantity || ""} onChange={handleChange} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="block text-right text-xs mb-1">מלאי מינימום (התראה)</label>
+            <Input type="number" min={1} name="minStock" value={product.minStock || ""} onChange={handleChange} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="block text-right text-xs mb-1">מחיר ליחידה</label>
+            <Input type="number" min={0} name="price" value={product.price || ""} onChange={handleChange} />
+          </div>
           {/* שדה תאריך תפוגה אופציונלי */}
-          <div>
+          <div className="flex flex-col gap-1">
             <label className="block text-right text-xs mb-1">תאריך תפוגה (רשות)</label>
             <DateInput value={product.expiryDate || null} onChange={handleExpiryDateChange} />
           </div>

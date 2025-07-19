@@ -15,6 +15,7 @@ import { Toggle } from "@/components/ui/toggle";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, RotateCcw, ArrowDown, ArrowUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import InventoryTable from "@/components/InventoryTable";
 
 const RTL_LANGS = ["he", "ar", "fa", "ur"];
 
@@ -29,14 +30,6 @@ export interface Product {
   expiryDate?: string | null;
 }
 
-const initialProducts: Product[] = [
-  { barcode: "7290001234567", name: "מברגה בוש", quantity: 13, supplier: "חשמל יצחק", minStock: 5, price: 349 },
-  { barcode: "7290009876541", name: "סרט מדידה 5 מטר", quantity: 34, supplier: "י.א. בניה", minStock: 10, price: 29 },
-  { barcode: "7290001122445", name: "פלייר מקצועי", quantity: 28, supplier: "כלי-ברזל בע\"מ", minStock: 10, price: 55 },
-  { barcode: "7290009988776", name: "מברשת צבע", quantity: 56, supplier: "ספק מבנים", minStock: 15, price: 19 },
-  { barcode: "7290008765432", name: "מסור ידני", quantity: 2, supplier: "כלי-ברזל בע\"מ", minStock: 2, price: 99 },
-];
-
 type SortOrder = "asc" | "desc";
 
 import { useInventoryBatches } from "@/hooks/useInventoryBatches";
@@ -44,7 +37,7 @@ import AddInventoryBatchDialog from "@/components/AddInventoryBatchDialog";
 import { InventoryBatch } from "@/types/inventory";
 
 const Products = () => {
-  const [products, setProducts] = React.useState<Product[]>(initialProducts);
+  const [products, setProducts] = React.useState<Product[]>([]);
   const [barcodeDatabase, setBarcodeDatabase] = React.useState<BarcodeDatabase>({});
 
   // פילטרים
@@ -259,6 +252,13 @@ const Products = () => {
 
   const { i18n } = useTranslation();
   const dir = RTL_LANGS.includes(i18n.language) ? "rtl" : "ltr";
+
+  React.useEffect(() => {
+    const stored = localStorage.getItem('products');
+    if (stored) {
+      setProducts(JSON.parse(stored));
+    }
+  }, []);
 
   return (
     <main className="min-h-screen bg-background px-8 py-8" dir={dir}>

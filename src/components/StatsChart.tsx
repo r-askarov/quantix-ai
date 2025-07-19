@@ -16,7 +16,7 @@ const StatsChart = () => (
       <BarChart data={data} layout="vertical" margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis type="number" hide />
-        <YAxis dataKey="name" type="category" width={90} />
+        <YAxis dataKey="name" type="category" />
         <Tooltip />
         <Bar dataKey="quantity" fill="#2563eb" radius={[6, 6, 0, 0]} />
       </BarChart>
