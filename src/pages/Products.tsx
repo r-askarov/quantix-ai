@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Toggle } from "@/components/ui/toggle";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, RotateCcw, ArrowDown, ArrowUp } from "lucide-react";
+import { ChevronDown, RotateCcw, ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import InventoryTable from "@/components/InventoryTable";
 
@@ -39,6 +39,27 @@ import { InventoryBatch } from "@/types/inventory";
 const Products = () => {
   const [products, setProducts] = React.useState<Product[]>([]);
   const [barcodeDatabase, setBarcodeDatabase] = React.useState<BarcodeDatabase>({});
+
+  // Load products from localStorage on initial render
+  React.useEffect(() => {
+    const storedProducts = JSON.parse(localStorage.getItem("products") || "[]");
+    setProducts(storedProducts);
+  }, []);
+
+  // Listen for changes to localStorage and update products dynamically
+  React.useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "products") {
+        const updatedProducts = JSON.parse(event.newValue || "[]");
+        setProducts(updatedProducts);
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
 
   // פילטרים
   const [supplierFilter, setSupplierFilter] = React.useState<string | null>(null);
@@ -216,13 +237,34 @@ const Products = () => {
     });
   };
 
+  // Remove the clearing effect
+  /*
+  React.useEffect(() => {
+    localStorage.removeItem("products");
+    localStorage.removeItem("barcodeDatabase");
+    setProducts([]);
+    setBarcodeDatabase({});
+  }, []);
+  */
+
   const handleBarcodeImport = (database: BarcodeDatabase) => {
-    setBarcodeDatabase(database);
-    localStorage.setItem('barcodeDatabase', JSON.stringify(database));
-    console.log("Barcode database imported and saved:", database);
-    toast({
-      title: "מאגר ברקודים יובא בהצלחה!",
-      description: `יובאו ${Object.keys(database).length} מוצרים למאגר`,
+    setBarcodeDatabase(prevDatabase => {
+      // Merge new database with existing one
+      const mergedDatabase = { ...prevDatabase, ...database };
+      localStorage.setItem('barcodeDatabase', JSON.stringify(mergedDatabase));
+      
+      // Dispatch storage event for other components
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'barcodeDatabase',
+        newValue: JSON.stringify(mergedDatabase)
+      }));
+
+      toast({
+        title: "מאגר ברקודים יובא בהצלחה!",
+        description: `יובאו ${Object.keys(database).length} מוצרים. סה"כ: ${Object.keys(mergedDatabase).length} מוצרים במאגר`,
+      });
+
+      return mergedDatabase;
     });
   };
 
@@ -259,6 +301,43 @@ const Products = () => {
       setProducts(JSON.parse(stored));
     }
   }, []);
+
+  const downloadCSV = () => {
+    const headers = ["ברקוד", "שם", "כמות", "ספק", "מלאי מינימלי", "מחיר", "תאריך תפוגה"];
+    const rows = filteredProducts.map((product) => [
+      product.barcode,
+      product.name,
+      product.quantity,
+      product.supplier,
+      product.minStock,
+      product.price,
+      product.expiryDate || "ללא",
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${cell}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "products.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleClearAllProducts = () => {
+    if (window.confirm('האם אתה בטוח שברצונך למחוק את כל המוצרים?')) {
+      localStorage.removeItem('products');
+      setProducts([]);
+      toast({
+        title: "המוצרים נמחקו",
+        description: "רשימת המוצרים רוקנה בהצלחה",
+      });
+    }
+  };
 
   return (
     <main className="min-h-screen bg-background px-8 py-8" dir={dir}>
@@ -336,6 +415,18 @@ const Products = () => {
         <div className="flex gap-2 justify-end mb-2 sm:mb-0">
           <ExcelImportDialog onImport={handleBarcodeImport} />
           <EnhancedAddProductDialog onAdd={handleAddProduct} barcodeDatabase={barcodeDatabase} />
+          <Button onClick={downloadCSV} variant="outline" size="sm">
+            הורד כ-CSV
+          </Button>
+          <Button 
+            onClick={handleClearAllProducts} 
+            variant="outline" 
+            size="sm"
+            className="text-red-600 hover:text-red-700"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            נקה מוצרים
+          </Button>
         </div>
       </div>
 

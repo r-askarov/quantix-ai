@@ -1,9 +1,9 @@
 import * as React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScanText, Upload } from "lucide-react";
+import { ScanText, Upload, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Tesseract from "tesseract.js";
 import { ShippingItem } from "@/pages/Orders";
@@ -309,8 +309,15 @@ const OCRShippingDocumentDialog: React.FC<OCRShippingDocumentDialogProps> = ({ o
       const extractedText = result.data.text;
       console.log('Extracted text:', extractedText);
 
-      const parsedItems = parseShippingDocument(extractedText);
-      console.log('Parsed items:', parsedItems);
+      const parsedItems = ((): ShippingItem[] => {
+        // call existing parseShippingDocument and fallbacks
+        // keep the same logic as before by copying/paraphrasing here
+        const lines = extractedText.split('\n').filter(line => line.trim().length > 0);
+        // reuse parsing functions declared above
+        let items = parseShippingDocument(extractedText);
+        if (items.length === 0) items = parseAlternativeFormats(lines);
+        return items;
+      })();
 
       if (parsedItems.length === 0) {
         toast({
@@ -318,6 +325,7 @@ const OCRShippingDocumentDialog: React.FC<OCRShippingDocumentDialogProps> = ({ o
           description: "לא הצלחנו לזהות פריטים בתעודת המשלוח. ודא שהתמונה מכילה טבלה עם עמודות: שם פריט, בר קוד, בודדים",
           variant: "destructive",
         });
+        setLoading(false);
         return;
       }
 
@@ -344,63 +352,166 @@ const OCRShippingDocumentDialog: React.FC<OCRShippingDocumentDialogProps> = ({ o
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <ScanText className="h-4 w-4 mr-2" />
-          סריקת תעודת משלוח
-        </Button>
-      </DialogTrigger>
-      <DialogContent dir="rtl" className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>סריקת תעודת משלוח עם OCR</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="shipping-document">בחר תמונה של תעודת המשלוח</Label>
-            <Input
-              id="shipping-document"
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="mt-1"
-            />
-          </div>
-          
-          {preview && (
-            <div className="mt-4">
-              <Label>תצוגה מקדימה:</Label>
-              <img 
-                src={preview} 
-                alt="Document preview" 
-                className="mt-2 max-w-full h-auto max-h-64 object-contain border rounded"
-              />
+  // Modal portal
+  const modal = open
+    ? createPortal(
+        <div
+          className="fixed inset-0 flex items-center justify-center"
+          style={{ zIndex: 99999 }}
+        >
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          <div
+            className="relative bg-white p-6 rounded shadow w-full max-w-2xl mx-4"
+            dir="rtl"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">סריקת תעודת משלוח עם OCR</h2>
+              <button
+                aria-label="Close"
+                onClick={() => setOpen(false)}
+                className="p-1 rounded hover:bg-gray-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-          )}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="shipping-document">בחר תמונה של תעודת המשלוח</Label>
+                <Input
+                  id="shipping-document"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const selectedFile = e.target.files?.[0];
+                    if (selectedFile) {
+                      if (selectedFile.type.startsWith('image/')) {
+                        setFile(selectedFile);
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          setPreview(ev.target?.result as string);
+                        };
+                        reader.readAsDataURL(selectedFile);
+                      } else {
+                        toast({
+                          title: "שגיאה",
+                          description: "אנא בחר קובץ תמונה (JPG, PNG, etc.)",
+                          variant: "destructive",
+                        });
+                      }
+                    }
+                  }}
+                  className="mt-1"
+                />
+              </div>
 
-          <div className="text-xs text-gray-500">
-            <p>המערכת מזהה טבלאות עם העמודות הבאות:</p>
-            <ul className="list-disc pr-5 mt-1">
-              <li><strong>שם פריט</strong> - יועבר לעמודת "שם מוצר"</li>
-              <li><strong>בר קוד</strong> - יועבר לעמודת "ברקוד/SKU"</li>
-              <li><strong>בודדים</strong> - יועבר לעמודת "כמות"</li>
-              <li>ודא שהטקסט בתמונה חד וברור</li>
-              <li>העמודות צריכות להיות מסודרות בטבלה</li>
-            </ul>
-          </div>
+              {preview && (
+                <div className="mt-4">
+                  <Label>תצוגה מקדימה:</Label>
+                  <img
+                    src={preview}
+                    alt="Document preview"
+                    className="mt-2 max-w-full h-auto max-h-64 object-contain border rounded"
+                  />
+                </div>
+              )}
 
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              ביטול
-            </Button>
-            <Button onClick={handleOCR} disabled={!file || loading}>
-              {loading ? "סורק..." : "סרוק מסמך"}
-            </Button>
+              <div className="text-xs text-gray-500">
+                <p>המערכת מזהה טבלאות עם העמודות הבאות:</p>
+                <ul className="list-disc pr-5 mt-1">
+                  <li><strong>שם פריט</strong> - יועבר לעמודת "שם מוצר"</li>
+                  <li><strong>בר קוד</strong> - יועבר לעמודת "ברקוד/SKU"</li>
+                  <li><strong>בודדים</strong> - יועבר לעמודת "כמות"</li>
+                  <li>ודא שהטקסט בתמונה חד וברור</li>
+                  <li>העמודות צריכות להיות מסודרות בטבלה</li>
+                </ul>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => { setOpen(false); setFile(null); setPreview(""); }}>
+                  ביטול
+                </Button>
+                <Button onClick={async () => {
+                  // reuse existing handleOCR logic
+                  if (!file) {
+                    toast({
+                      title: "שגיאה",
+                      description: "אנא בחר קובץ תמונה לסריקה",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setLoading(true);
+                  try {
+                    const result = await Tesseract.recognize(file, 'heb+eng', {
+                      logger: m => console.log(m)
+                    });
+
+                    const extractedText = result.data.text;
+                    const parsedItems = ((): ShippingItem[] => {
+                      // call existing parseShippingDocument and fallbacks
+                      // keep the same logic as before by copying/paraphrasing here
+                      const lines = extractedText.split('\n').filter(line => line.trim().length > 0);
+                      // reuse parsing functions declared above
+                      let items = parseShippingDocument(extractedText);
+                      if (items.length === 0) items = parseAlternativeFormats(lines);
+                      return items;
+                    })();
+
+                    if (parsedItems.length === 0) {
+                      toast({
+                        title: "לא נמצאו פריטים",
+                        description: "לא הצלחנו לזהות פריטים בתעודת המשלוח. ודא שהתמונה מכילה טבלה עם עמודות: שם פריט, בר קוד, בודדים",
+                        variant: "destructive",
+                      });
+                      setLoading(false);
+                      return;
+                    }
+
+                    const comparedItems = compareWithInventory(parsedItems);
+                    onOCRResult(comparedItems);
+
+                    toast({
+                      title: "הסריקה הושלמה בהצלחה!",
+                      description: `זוהו ${parsedItems.length} פריטים מהעמודות: שם פריט, בר קוד, בודדים`,
+                    });
+
+                    setOpen(false);
+                    setFile(null);
+                    setPreview("");
+                  } catch (error) {
+                    console.error("OCR error:", error);
+                    toast({
+                      title: "שגיאה בסריקה",
+                      description: "אירעה שגיאה בעת סריקת התמונה. נסה שוב עם תמונה אחרת.",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setLoading(false);
+                  }
+                }} disabled={!file || loading}>
+                  {loading ? "סורק..." : "סרוק מסמך"}
+                </Button>
+              </div>
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </div>,
+        document.body
+      )
+    : null;
+
+  // Render trigger button + modal portal
+  return (
+    <>
+      <Button onClick={() => setOpen(true)}>
+        <ScanText className="h-4 w-4 mr-2" />
+        סריקת תעודת משלוח
+      </Button>
+      {modal}
+    </>
   );
 };
 

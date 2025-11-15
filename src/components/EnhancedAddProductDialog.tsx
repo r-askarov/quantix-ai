@@ -124,6 +124,26 @@ const EnhancedAddProductDialog = ({
     }));
   };
 
+  // Add effect to load temp product data
+  React.useEffect(() => {
+    if (dialogOpen) {
+      const tempData = localStorage.getItem('tempProductData');
+      if (tempData) {
+        const parsedData = JSON.parse(tempData);
+        setProduct(prev => ({
+          ...prev,
+          ...parsedData,
+          minStock: parsedData.minStock || 1,
+          price: parsedData.price || 0,
+          quantity: parsedData.quantity || 0,
+        }));
+      }
+    } else {
+      // Clean up temp data when dialog closes
+      localStorage.removeItem('tempProductData');
+    }
+  }, [dialogOpen]);
+
   return (
     <Dialog open={dialogOpen} onOpenChange={val => {
       setDialogOpen(val);

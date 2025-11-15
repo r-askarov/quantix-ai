@@ -29,7 +29,8 @@ const Navbar = () => {
 
   return (
     <nav
-      className="w-full flex flex-row items-center justify-center p-4 select-none mb-4 border-b bg-card/90 backdrop-blur sticky top-0 z-40"
+      className="w-full flex flex-row items-center justify-center p-4 select-none mb-4 bg-card/90 backdrop-blur sticky top-0 z-40"
+      style={{ zIndex: 1000 }}
       dir={dir}
     >
       <div className="flex gap-6">
@@ -48,8 +49,7 @@ const Navbar = () => {
         ))}
       </div>
       <div className="flex-1" />
-      <h1 className="font-semibold ml-2 text-2xl">Revalto</h1>
-      <img src={logo} width={40} height={40} />
+      <img src={logo} width={150} height={150} />
     </nav>
   );
 };

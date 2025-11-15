@@ -7,6 +7,7 @@ import * as React from "react";
 import i18n from "../i18n";
 import BarcodeScannerDialog from "@/components/BarcodeScannerDialog";
 import EnhancedAddProductDialog from "@/components/EnhancedAddProductDialog";
+import ActivityLogModal from "@/components/ActivityLogModal";
 import ExcelImportDialog, {
   BarcodeDatabase,
 } from "@/components/ExcelImportDialog";
@@ -18,6 +19,18 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  BarChart,
+  ScanBarcode,
+  ClipboardList,
+  MoreHorizontal,
+  ArrowDownCircle,
+  DollarSign,
+  CreditCard,
+  LogOut,
+  LogIn,
+} from "lucide-react";
+import { searchOpenFoodFacts } from "@/utils/barcodeSearch";
 
 const RemoveProductDialog = ({
   open,
@@ -90,50 +103,6 @@ const RemoveProductDialog = ({
   );
 };
 
-// Shared initial products array
-const initialProducts = [
-  {
-    barcode: "7290001234567",
-    name: "מברגה בוש",
-    quantity: 13,
-    supplier: "חשמל יצחק",
-    minStock: 5,
-    price: 349,
-  },
-  {
-    barcode: "7290009876541",
-    name: "סרט מדידה 5 מטר",
-    quantity: 34,
-    supplier: "י.א. בניה",
-    minStock: 10,
-    price: 29,
-  },
-  {
-    barcode: "7290001122445",
-    name: "פלייר מקצועי",
-    quantity: 28,
-    supplier: "כלי-ברזל בע\"מ",
-    minStock: 10,
-    price: 55,
-  },
-  {
-    barcode: "7290009988776",
-    name: "מברשת צבע",
-    quantity: 56,
-    supplier: "ספק מבנים",
-    minStock: 15,
-    price: 19,
-  },
-  {
-    barcode: "7290008765432",
-    name: "מסור ידני",
-    quantity: 2,
-    supplier: "כלי-ברזל בע\"מ",
-    minStock: 2,
-    price: 99,
-  },
-];
-
 const Index = () => {
   React.useEffect(() => {
     document.body.dir = "rtl";
@@ -151,11 +120,19 @@ const Index = () => {
   const [removeBarcode, setRemoveBarcode] = React.useState("");
   const [removeProduct, setRemoveProduct] = React.useState<any | null>(null);
   const [products, setProducts] = React.useState([]);
+  const [activityLogOpen, setActivityLogOpen] = React.useState(false);
+  const [activityLog, setActivityLog] = React.useState<any[]>([]);
+  const [batches, setBatches] = React.useState<any[]>([]);
+  const [visibleCards, setVisibleCards] = React.useState<string[]>(() => {
+    const stored = localStorage.getItem("visibleCards");
+    return stored ? JSON.parse(stored) : ["totalItems", "lowStockAlerts", "openOrders", "activeWarehouses"];
+  });
+  const [editCardsOpen, setEditCardsOpen] = React.useState(false);
 
   React.useEffect(() => {
-    // Set initial products in localStorage if not already set
+    // Initialize with empty array if no products exist
     if (!localStorage.getItem("products")) {
-      localStorage.setItem("products", JSON.stringify(initialProducts));
+      localStorage.setItem("products", JSON.stringify([]));
     }
     const savedDatabase = localStorage.getItem("barcodeDatabase");
     if (savedDatabase) {
@@ -174,6 +151,34 @@ const Index = () => {
     }
   }, [addDialogOpen, removeDialogOpen]); // update when dialogs close
 
+  React.useEffect(() => {
+    const storedLog = localStorage.getItem("activityLog");
+    if (storedLog) setActivityLog(JSON.parse(storedLog));
+  }, [addDialogOpen, removeDialogOpen]);
+
+  React.useEffect(() => {
+    const storedBatches = localStorage.getItem("inventoryBatches");
+    if (storedBatches) {
+      try {
+        setBatches(JSON.parse(storedBatches));
+      } catch (error) {
+        console.error("Error loading batches:", error);
+      }
+    }
+  }, []);
+
+  // Calculate total items from products and batches
+  const totalItems = React.useMemo(() => {
+    const productTotal = products.reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
+    const batchTotal = batches.reduce((sum: number, b: any) => sum + (b.quantity || 0), 0);
+    return productTotal + batchTotal;
+  }, [products, batches]);
+
+  // Calculate low stock alerts
+  const lowStockAlerts = React.useMemo(() => {
+    return products.filter((p: any) => p.quantity <= p.minStock).length;
+  }, [products]);
+
   const handleRemoveProduct = (barcode: string, quantity: number) => {
     const productsArr = JSON.parse(localStorage.getItem("products") || "[]");
     const idx = productsArr.findIndex((p: any) => p.barcode === barcode);
@@ -190,6 +195,68 @@ const Index = () => {
     }
   };
 
+  const addLogEntry = (entry: any) => {
+    const logArr = JSON.parse(localStorage.getItem("activityLog") || "[]");
+    logArr.unshift(entry);
+    localStorage.setItem("activityLog", JSON.stringify(logArr));
+    setActivityLog(logArr);
+  };
+
+  const toggleCardVisibility = (card: string) => {
+    const updatedCards = visibleCards.includes(card)
+      ? visibleCards.filter((c) => c !== card)
+      : [...visibleCards, card];
+    setVisibleCards(updatedCards);
+    localStorage.setItem("visibleCards", JSON.stringify(updatedCards));
+  };
+
+  const handleBarcodeDetected = async (barcode: string) => {
+    console.log('🔍 Barcode scanned:', barcode);
+    setScannedBarcode(barcode);
+    setScannerOpen(false);
+
+    // First check local database
+    const localDb = JSON.parse(localStorage.getItem('barcodeDatabase') || '{}');
+    if (localDb[barcode]) {
+      console.log('✅ Found in local database:', localDb[barcode]);
+      setAddDialogOpen(true);
+      return;
+    }
+    console.log('❌ Not found in local database, trying OpenFoodFacts...');
+
+    // If not in local database, try Open Food Facts
+    const openFoodData = await searchOpenFoodFacts(barcode);
+    if (openFoodData) {
+      console.log('✅ Found in OpenFoodFacts:', openFoodData);
+      // Store more detailed product data
+      localStorage.setItem('tempProductData', JSON.stringify({
+        barcode,
+        name: openFoodData.name,
+        supplier: openFoodData.brands || "",
+        category: openFoodData.categories || "",
+        quantity: 1, // Default quantity
+        minStock: 0, // Default minStock
+        price: 0, // Default price
+        description: openFoodData.generic_name || "",
+        packageSize: openFoodData.quantity || "",
+        // Add any other relevant fields from the API response
+      }));
+    } else {
+      console.log('❌ Product not found in OpenFoodFacts');
+      // Store minimal data for manual entry
+      localStorage.setItem('tempProductData', JSON.stringify({
+        barcode,
+        name: "",
+        supplier: "",
+        quantity: 1,
+        minStock: 0,
+        price: 0
+      }));
+    }
+
+    setAddDialogOpen(true);
+  };
+
   return (
     <main
       className="min-h-screen bg-background flex flex-col gap-10 px-8 py-8"
@@ -199,65 +266,151 @@ const Index = () => {
       {/* Header */}
       <header className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-2 select-none">
         <h1 className="text-4xl font-black tracking-tight text-primary mb-1">
-          Revalto – ניהול מלאי חכם
+          RevAlto – ניהול מלאי חכם
         </h1>
+        <button
+          onClick={() => setEditCardsOpen(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded"
+        >
+          ערוך כרטיסים
+        </button>
       </header>
+
       {/* Cards */}
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 w-full">
-        <DashboardCard
-          title="סה״כ פריטים"
-          value="1,248"
-          icon={<ArrowUp className="text-green-600" />}
-          change="+8 (היום)"
-          color="from-blue-500 via-cyan-500 to-green-400"
-        />
-        <DashboardCard
-          title="התראות מלאי נמוך"
-          value="5"
-          icon={<ArrowDown className="text-red-600" />}
-          change="2 התראות חדשות"
-          color="from-red-400 via-orange-400 to-yellow-300"
-        />
-        <DashboardCard
-          title="סך הזמנות פתוחות"
-          value="13"
-          icon={<ArrowUp className="text-blue-700" />}
-          change="+1 (שבוע אחרון)"
-          color="from-fuchsia-500 via-indigo-400 to-sky-300"
-        />
-        <DashboardCard
-          title="מחסנים פעילים"
-          value="3"
-          icon={<ArrowUp className="text-green-700" />}
-          change="יציב"
-          color="from-emerald-400 via-cyan-400 to-blue-300"
-        />
+        {visibleCards.includes("totalItems") && (
+          <DashboardCard
+            title="סה״כ פריטים"
+            value={totalItems.toLocaleString("he-IL")}
+            icon={<ArrowUp className="text-green-600" />}
+            change="+8 (היום)"
+            color="from-blue-500 via-cyan-500 to-green-400"
+          />
+        )}
+        {visibleCards.includes("lowStockAlerts") && (
+          <DashboardCard
+            title="התראות מלאי נמוך"
+            value={lowStockAlerts.toString()}
+            icon={<ArrowDown className="text-red-600" />}
+            change={lowStockAlerts > 0 ? `${lowStockAlerts} פריטים בעלויות נמוכות` : "בתוך הנורמה"}
+            color="from-red-400 via-orange-400 to-yellow-300"
+          />
+        )}
+        {visibleCards.includes("openOrders") && (
+          <DashboardCard
+            title="סך הזמנות פתוחות"
+            value="13"
+            icon={<ArrowUp className="text-green-700" />}
+            change="+1 (שבוע אחרון)"
+            color="from-fuchsia-500 via-indigo-400 to-sky-300"
+          />
+        )}
+        {visibleCards.includes("activeWarehouses") && (
+          <DashboardCard
+            title="מחסנים פעילים"
+            value="3"
+            icon={<ArrowUp className="text-green-700" />}
+            change="יציב"
+            color="from-emerald-400 via-cyan-400 to-blue-300"
+          />
+        )}
       </section>
+
+      {/* Edit Cards Modal */}
+      {editCardsOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+          style={{ zIndex: 1050 }} // Ensure the modal backdrop has a high z-index
+        >
+          <div className="bg-white p-6 rounded shadow w-full max-w-md">
+            <h2 className="text-xl font-semibold mb-4">בחר כרטיסים להצגה</h2>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={visibleCards.includes("totalItems")}
+                  onChange={() => toggleCardVisibility("totalItems")}
+                />
+                <span>סה״כ פריטים</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={visibleCards.includes("lowStockAlerts")}
+                  onChange={() => toggleCardVisibility("lowStockAlerts")}
+                />
+                <span>התראות מלאי נמוך</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={visibleCards.includes("openOrders")}
+                  onChange={() => toggleCardVisibility("openOrders")}
+                />
+                <span>סך הזמנות פתוחות</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={visibleCards.includes("activeWarehouses")}
+                  onChange={() => toggleCardVisibility("activeWarehouses")}
+                />
+                <span>מחסנים פעילים</span>
+              </label>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setEditCardsOpen(false)}
+                className="px-4 py-2 bg-blue-600 text-white rounded"
+              >
+                סגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div className="flex flex-row w-full gap-12 mb-6 items-center font-bold">
+        <button className="flex flex-col items-center gap-1 text-primary hover:text-blue-700">
+          <BarChart size={24} />
+          <span className="text-xs">סטטיסטיקות</span>
+        </button>
+        <button onClick={() => setScannerOpen(true)} className="flex flex-col items-center gap-1 text-green-600 hover:text-green-800">
+          <ScanBarcode size={24} />
+          <span className="text-xs">סרוק</span>
+        </button>
+        <button className="flex flex-col items-center gap-1 text-fuchsia-600 hover:text-fuchsia-800">
+          <ClipboardList size={24} />
+          <span className="text-xs">הזמנות</span>
+        </button>
+        <button className="flex flex-col items-center gap-1 text-gray-600 hover:text-gray-800" onClick={() => setActivityLogOpen(true)}>
+          <MoreHorizontal size={24} />
+          <span className="text-xs">פעולות</span>
+        </button>
+        <button onClick={() => setRemoveScannerOpen(true)} className="flex flex-col items-center gap-1 text-red-600 hover:text-red-800">
+          <ArrowDownCircle size={24} />
+          <span className="text-xs">משיכה</span>
+        </button>
+        <button className="flex flex-col items-center gap-1 text-yellow-600 hover:text-yellow-800">
+          <DollarSign size={24} />
+          <span className="text-xs">עדכון מחיר</span>
+        </button>
+        <button className="flex flex-col items-center gap-1 text-cyan-600 hover:text-cyan-800">
+          <CreditCard size={24} />
+          <span className="text-xs">קרדיטים</span>
+        </button>
+      </div>
+
       {/* Dashboard Main */}
-      <section className="grid grid-cols-1 2xl:grid-cols-3 gap-8 mt-4 w-full">
+      <section className="grid grid-cols-1 2xl:grid-cols-3 w-full">
         {/* Inventory table */}
         <div className="col-span-2 rounded-xl bg-card shadow border p-6 flex flex-col min-w-0">
           <h2 className="text-2xl font-semibold mb-4">מלאי נוכחי</h2>
-          <button
-            className="flex items-center gap-2 px-3 py-2 border rounded-md bg-green-500 text-white hover:bg-green-600 transition mb-4 self-start"
-            onClick={() => setScannerOpen(true)}
-          >
-            + סרוק ברקוד והוסף מוצר
-          </button>
-          <button
-            className="flex items-center gap-2 px-3 py-2 border rounded-md bg-red-500 text-white hover:bg-red-600 transition mb-4 self-start"
-            onClick={() => setRemoveScannerOpen(true)}
-          >
-            - סרוק ברקוד ומשוך מוצר
-          </button>
           <BarcodeScannerDialog
             open={scannerOpen}
             onClose={() => setScannerOpen(false)}
-            onDetected={(barcode) => {
-              setScannedBarcode(barcode);
-              setScannerOpen(false);
-              setAddDialogOpen(true);
-            }}
+            onDetected={handleBarcodeDetected}
           />
           <BarcodeScannerDialog
             open={removeScannerOpen}
@@ -284,12 +437,28 @@ const Index = () => {
               );
               products.push(product);
               localStorage.setItem("products", JSON.stringify(products));
+              
+              // Clear any temporary product data
+              localStorage.removeItem('tempProductData');
+              
+              addLogEntry({
+                type: "insert",
+                name: product.name,
+                barcode: product.barcode,
+                quantity: product.quantity,
+                date: Date.now()
+              });
               setAddDialogOpen(false);
               setScannedBarcode("");
             }}
             barcodeDatabase={barcodeDatabase}
             initialBarcode={scannedBarcode}
-            onOpenChange={setAddDialogOpen}
+            onOpenChange={(open) => {
+              setAddDialogOpen(open);
+              if (!open) {
+                localStorage.removeItem('tempProductData');
+              }
+            }}
           />
           <RemoveProductDialog
             open={removeDialogOpen}
@@ -297,6 +466,7 @@ const Index = () => {
             product={removeProduct}
             onRemove={(barcode, quantity) => {
               handleRemoveProduct(barcode, quantity);
+              addLogEntry({ type: "withdraw", name: removeProduct?.name, barcode, quantity, date: Date.now() });
               setRemoveDialogOpen(false);
               setRemoveBarcode("");
               setRemoveProduct(null);
@@ -317,6 +487,7 @@ const Index = () => {
           </div>
         </aside>
       </section>
+      <ActivityLogModal open={activityLogOpen} onOpenChange={setActivityLogOpen} log={activityLog} />
     </main>
   );
 };

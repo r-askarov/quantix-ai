@@ -19,11 +19,11 @@ const DashboardCard = ({ title, value, icon, change, color }: DashboardCardProps
     style={{ minHeight: 135 }}
   >
     <div className="flex items-center justify-between mb-1">
-      <span className="text-lg font-bold tracking-tight text-foreground">{title}</span>
+      <span className="text-lg font-bold tracking-tight text-white">{title}</span>
       {icon && <span>{icon}</span>}
     </div>
-    <span className="text-3xl font-extrabold text-foreground">{value}</span>
-    {change && <span className="text-sm text-black mt-2">{change}</span>}
+    <span className="text-3xl font-extrabold text-white">{value}</span>
+    {change && <span className="text-sm mt-2 text-white">{change}</span>}
   </div>
 );
 

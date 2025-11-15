@@ -148,6 +148,11 @@ const Suppliers = () => {
     // אין רענון אוטומטי של דף הספקים כי מאגר הברקודים נטען רק פעם אחת (אפשר לרענן את הדף)
   };
 
+  // Clear all supplier-related data on initial load
+  React.useEffect(() => {
+    localStorage.removeItem("suppliers");
+  }, []);
+
   return (
     <main className="min-h-screen bg-background px-8 py-8" dir={dir}>
       <div className="mb-6">

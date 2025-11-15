@@ -49,22 +49,87 @@ const Orders = () => {
   const { i18n } = useTranslation();
   const dir = RTL_LANGS.includes(i18n.language) ? "rtl" : "ltr";
 
-  // טעינת מאגר ברקודים מ-localStorage
+  // Update barcode database loading to refresh when localStorage changes
   React.useEffect(() => {
-    const savedDatabase = localStorage.getItem('barcodeDatabase');
-    if (savedDatabase) {
-      try {
-        const parsedDatabase = JSON.parse(savedDatabase);
-        setBarcodeDatabase(parsedDatabase);
-      } catch (error) {
-        console.error('Error loading barcode database:', error);
+    const loadBarcodeDatabase = () => {
+      const savedDatabase = localStorage.getItem('barcodeDatabase');
+      if (savedDatabase) {
+        try {
+          const parsedDatabase = JSON.parse(savedDatabase);
+          setBarcodeDatabase(parsedDatabase);
+        } catch (error) {
+          console.error('Error loading barcode database:', error);
+        }
       }
-    }
+    };
+
+    loadBarcodeDatabase();
+
+    // Listen for changes to barcodeDatabase in localStorage
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'barcodeDatabase') {
+        loadBarcodeDatabase();
+      }
+    });
+
+    return () => {
+      window.removeEventListener('storage', () => {});
+    };
   }, []);
 
   const handleOCRResult = (items: ShippingItem[]) => {
     setShippingItems(items);
     setShowComparison(true);
+
+    // Load barcode database and existing products
+    const barcodeDatabase = JSON.parse(localStorage.getItem('barcodeDatabase') || '{}');
+    const existingProducts = JSON.parse(localStorage.getItem('products') || '[]');
+    const updatedProducts = [...existingProducts];
+
+    // Process each scanned item
+    items.forEach((item) => {
+      if (item.barcode && barcodeDatabase[item.barcode]) {
+        // If barcode exists in database, use that product info
+        const dbProduct = barcodeDatabase[item.barcode];
+        const existingIndex = updatedProducts.findIndex(p => p.barcode === item.barcode);
+
+        if (existingIndex !== -1) {
+          // Update existing product quantity
+          updatedProducts[existingIndex].quantity += item.quantity;
+        } else {
+          // Add new product with database info
+          updatedProducts.push({
+            barcode: item.barcode,
+            name: dbProduct.name,
+            quantity: item.quantity,
+            supplier: dbProduct.supplier || "Unknown",
+            minStock: dbProduct.minStock || 0,
+            price: 0,
+            expiryDate: null,
+          });
+        }
+      } else {
+        // If no barcode match, add as new product with basic info
+        const existingIndex = updatedProducts.findIndex(p => p.name === item.name);
+        
+        if (existingIndex !== -1) {
+          updatedProducts[existingIndex].quantity += item.quantity;
+        } else {
+          updatedProducts.push({
+            barcode: item.barcode || "",
+            name: item.name,
+            quantity: item.quantity,
+            supplier: "Unknown",
+            minStock: 0,
+            price: 0,
+            expiryDate: null,
+          });
+        }
+      }
+    });
+
+    // Save updated products to localStorage
+    localStorage.setItem('products', JSON.stringify(updatedProducts));
   };
 
   const handleCreatePurchaseOrder = (supplierId: string) => {
