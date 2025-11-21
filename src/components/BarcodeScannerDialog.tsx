@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,12 +8,14 @@ interface BarcodeScannerDialogProps {
   open: boolean;
   onClose: () => void;
   onDetected: (code: string) => void;
+  onAddManually?: () => void;
 }
 
 const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
   open,
   onClose,
   onDetected,
+  onAddManually,
 }) => {
   const [scanning, setScanning] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -236,6 +237,14 @@ const BarcodeScannerDialog: React.FC<BarcodeScannerDialogProps> = ({
           <Button variant="secondary" onClick={onClose}>
             סגור
           </Button>
+          {onAddManually && (
+            <Button variant="default" onClick={() => {
+              onAddManually();
+              onClose();
+            }}>
+              הוסף ידנית
+            </Button>
+          )}
           {error && (
             <Button variant="default" onClick={startScanning}>
               🔄 נסה שוב

@@ -1,10 +1,10 @@
 import * as React from "react";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, X } from "lucide-react";
 import { Product } from "@/pages/Products";
 
 // טעינה של DatePicker עדין - ניתן לעטוף ב-Input במידת הצורך
@@ -91,7 +91,7 @@ const EnhancedAddProductDialog = ({
   // ביצוע שליחה
   const handleSubmit = () => {
     if (!product.barcode || !product.name || !product.supplier || !product.quantity || !product.price) {
-      toast({ title: "נא למלא את כל השדות החובה!", variant: "destructive" });
+      toast({ title: "נא למלא את כל שדות החובה!", variant: "destructive" });
       return;
     }
     const toAdd: Product = {
@@ -144,56 +144,87 @@ const EnhancedAddProductDialog = ({
     }
   }, [dialogOpen]);
 
-  return (
-    <Dialog open={dialogOpen} onOpenChange={val => {
-      setDialogOpen(val);
-      if (onOpenChange) onOpenChange(val);
-    }}>
-      <DialogContent dir="rtl">
-        <DialogHeader>
-          <DialogTitle>הוספת מוצר חדש</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="block text-right text-xs mb-1">ברקוד</label>
-            <Input
-              name="barcode"
-              value={product.barcode || ""}
-              onChange={handleChange}
-            />
+  // Portal modal
+  const modal = dialogOpen
+    ? createPortal(
+        <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 99999 }}>
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => {
+              setDialogOpen(false);
+              if (onOpenChange) onOpenChange(false);
+            }}
+            aria-hidden
+          />
+          <div className="relative bg-white p-6 rounded shadow w-full max-w-md mx-4" dir="rtl" role="dialog" aria-modal="true">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">הוספת מוצר חדש</h2>
+              <button
+                onClick={() => {
+                  setDialogOpen(false);
+                  if (onOpenChange) onOpenChange(false);
+                }}
+                className="p-1 rounded hover:bg-gray-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="block text-right text-xs mb-1">ברקוד</label>
+                <Input
+                  name="barcode"
+                  value={product.barcode || ""}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="block text-right text-xs mb-1">שם מוצר</label>
+                <Input name="name" value={product.name || ""} onChange={handleChange} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="block text-right text-xs mb-1">ספק</label>
+                <Input name="supplier" value={product.supplier || ""} onChange={handleChange} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="block text-right text-xs mb-1">כמות התחלתית</label>
+                <Input type="number" min={0} name="quantity" value={product.quantity || ""} onChange={handleChange} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="block text-right text-xs mb-1">מלאי מינימום (התראה)</label>
+                <Input type="number" min={1} name="minStock" value={product.minStock || ""} onChange={handleChange} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="block text-right text-xs mb-1">מחיר ליחידה</label>
+                <Input type="number" min={0} name="price" value={product.price || ""} onChange={handleChange} />
+              </div>
+              {/* שדה תאריך תפוגה אופציונלי */}
+              <div className="flex flex-col gap-1">
+                <label className="block text-right text-xs mb-1">תאריך תפוגה (רשות)</label>
+                <DateInput value={product.expiryDate || null} onChange={handleExpiryDateChange} />
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDialogOpen(false);
+                  if (onOpenChange) onOpenChange(false);
+                }}
+              >
+                ביטול
+              </Button>
+              <Button onClick={handleSubmit}>הוסף</Button>
+            </div>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="block text-right text-xs mb-1">שם מוצר</label>
-            <Input name="name" value={product.name || ""} onChange={handleChange} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="block text-right text-xs mb-1">ספק</label>
-            <Input name="supplier" value={product.supplier || ""} onChange={handleChange} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="block text-right text-xs mb-1">כמות התחלתית</label>
-            <Input type="number" min={0} name="quantity" value={product.quantity || ""} onChange={handleChange} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="block text-right text-xs mb-1">מלאי מינימום (התראה)</label>
-            <Input type="number" min={1} name="minStock" value={product.minStock || ""} onChange={handleChange} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="block text-right text-xs mb-1">מחיר ליחידה</label>
-            <Input type="number" min={0} name="price" value={product.price || ""} onChange={handleChange} />
-          </div>
-          {/* שדה תאריך תפוגה אופציונלי */}
-          <div className="flex flex-col gap-1">
-            <label className="block text-right text-xs mb-1">תאריך תפוגה (רשות)</label>
-            <DateInput value={product.expiryDate || null} onChange={handleExpiryDateChange} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button onClick={handleSubmit}>הוסף</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+        </div>,
+        document.body
+      )
+    : null;
+
+  return modal;
 };
 
 export default EnhancedAddProductDialog;
