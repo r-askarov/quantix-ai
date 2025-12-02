@@ -160,7 +160,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ onAdd }) => {
           </div>
           <Input placeholder="שם מוצר" name="name" value={product.name} onChange={handleChange} />
           <Input placeholder="ספק" name="supplier" value={product.supplier} onChange={handleChange} />
-          <Input type="number" min={0} placeholder="כמות התחלתית" name="quantity" value={product.quantity} onChange={handleChange} />
+          <Input type="number" min={0} placeholder="כמות" name="quantity" value={product.quantity} onChange={handleChange} />
           <Input type="number" min={0} step="0.01" placeholder="מחיר ליחידה" name="price" value={product.price} onChange={handleChange} />
           <Input type="number" min={1} placeholder="מלאי מינימום (התראה)" name="minStock" value={product.minStock} onChange={handleChange} />
           

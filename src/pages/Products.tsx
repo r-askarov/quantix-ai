@@ -314,10 +314,15 @@ const Products = () => {
       product.expiryDate || "ללא",
     ]);
 
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n");
-
+    // Properly escape quotes, use CRLF line endings and prepend UTF-8 BOM so Excel recognizes UTF-8
+    const csvContent = "\uFEFF" + [headers, ...rows]
+      .map((row) =>
+        row
+          .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+          .join(",")
+      )
+      .join("\r\n");
+  
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");

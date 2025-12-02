@@ -188,7 +188,7 @@ const EnhancedAddProductDialog = ({
                 <Input name="supplier" value={product.supplier || ""} onChange={handleChange} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="block text-right text-xs mb-1">כמות התחלתית</label>
+                <label className="block text-right text-xs mb-1">כמות</label>
                 <Input type="number" min={0} name="quantity" value={product.quantity || ""} onChange={handleChange} />
               </div>
               <div className="flex flex-col gap-1">
