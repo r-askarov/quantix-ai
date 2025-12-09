@@ -37,7 +37,6 @@ const App = () => {
           <Navbar />
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/products" element={<Products />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/suppliers" element={<Suppliers />} />

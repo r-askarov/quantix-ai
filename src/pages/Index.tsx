@@ -270,14 +270,14 @@ const Index = () => {
         </h1>
         <button
           onClick={() => setEditCardsOpen(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded"
+          className="px-4 py-2 bg-blue-600 text-white rounded max-w-32"
         >
           ערוך כרטיסים
         </button>
       </header>
 
       {/* Notifications Panel - Moved to top */}
-      <div className="bg-card shadow border rounded-xl p-6">
+      <div className="bg-card shadow border rounded-xl p-6 w-full">
         <NotificationsPanel />
       </div>
 
@@ -446,6 +446,25 @@ const Index = () => {
               );
               products.push(product);
               localStorage.setItem("products", JSON.stringify(products));
+              
+              // Add to barcode database if not already there
+              const barcodeDb = JSON.parse(
+                localStorage.getItem("barcodeDatabase") || "{}"
+              );
+              if (!barcodeDb[product.barcode]) {
+                barcodeDb[product.barcode] = {
+                  name: product.name,
+                  supplier: product.supplier,
+                  minStock: product.minStock,
+                };
+                localStorage.setItem("barcodeDatabase", JSON.stringify(barcodeDb));
+                
+                // Dispatch storage event for other components
+                window.dispatchEvent(new StorageEvent('storage', {
+                  key: 'barcodeDatabase',
+                  newValue: JSON.stringify(barcodeDb)
+                }));
+              }
               
               // Clear any temporary product data
               localStorage.removeItem('tempProductData');

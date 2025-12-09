@@ -21,7 +21,7 @@ const colorByLevel = {
 };
 
 const NotificationsPanel = () => (
-  <div className="flex flex-col gap-3 w-[50%]" aria-live="polite">
+  <div className="flex flex-col gap-3 sm:w-[90%] md:w-[50%]" aria-live="polite">
     <h3 className="text-lg font-bold mb-1 flex items-center gap-2"><AlertCircle size={18} className="text-primary" /> התראות אחרונות</h3>
     {notifications.map((n, idx) => (
       <div key={idx} className={`rounded-lg border-l-4 px-4 py-3 mb-1 shadow-sm transition ${colorByLevel[n.level as keyof typeof colorByLevel]} `}>

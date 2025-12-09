@@ -4,21 +4,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Package, AlertCircle } from "lucide-react";
+import { Search, Package, AlertCircle, X } from "lucide-react";
 import { BarcodeDatabase as BarcodeDB } from "@/components/ExcelImportDialog";
 import { useTranslation } from "react-i18next";
+import { useToast } from "@/hooks/use-toast";
 
 const RTL_LANGS = ["he", "ar", "fa", "ur"];
 
 const BarcodeDatabase = () => {
+  const { i18n } = useTranslation();
+  const dir = RTL_LANGS.includes(i18n.language) ? "rtl" : "ltr";
+  const { toast } = useToast();
   const [searchBarcode, setSearchBarcode] = React.useState("");
   const [barcodeDatabase, setBarcodeDatabase] = React.useState<BarcodeDB>({});
   const [searchResult, setSearchResult] = React.useState<{
     found: boolean;
     product?: { name: string; supplier?: string; minStock?: number };
   } | null>(null);
-  const { i18n } = useTranslation();
-  const dir = RTL_LANGS.includes(i18n.language) ? "rtl" : "ltr";
 
   // טעינת מאגר ברקודים מ-localStorage אם קיים
   React.useEffect(() => {
@@ -48,6 +50,30 @@ const BarcodeDatabase = () => {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSearch();
+    }
+  };
+
+  const handleDeleteBarcode = (barcodeToDelete: string) => {
+    const updatedDatabase = { ...barcodeDatabase };
+    delete updatedDatabase[barcodeToDelete];
+    setBarcodeDatabase(updatedDatabase);
+    localStorage.setItem('barcodeDatabase', JSON.stringify(updatedDatabase));
+    
+    // Dispatch storage event for other components
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'barcodeDatabase',
+      newValue: JSON.stringify(updatedDatabase)
+    }));
+
+    toast({
+      title: "ברקוד נמחק",
+      description: `הברקוד ${barcodeToDelete} הוסר מהמאגר בהצלחה`,
+    });
+
+    // Clear search result if the deleted barcode was being displayed
+    if (searchResult?.product && searchBarcode === barcodeToDelete) {
+      setSearchResult(null);
+      setSearchBarcode("");
     }
   };
 
@@ -165,7 +191,7 @@ const BarcodeDatabase = () => {
 
         {/* רשימת מוצרים במאגר */}
         {databaseSize > 0 && (
-          <Card>
+          <Card className="max-w-2xl">
             <CardHeader>
               <CardTitle>מוצרים במאגר</CardTitle>
             </CardHeader>
@@ -180,6 +206,15 @@ const BarcodeDatabase = () => {
                         <p className="text-sm text-muted-foreground">ספק: {product.supplier}</p>
                       )}
                     </div>
+                    {/* Delete Button */}
+                    <button
+                      onClick={() => handleDeleteBarcode(barcode)}
+                      className="p-1 rounded hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors flex-shrink-0"
+                      aria-label={`Delete barcode ${barcode}`}
+                      title="Delete barcode"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
                     {product.minStock !== undefined && (
                       <Badge variant="outline">
                         מלאי מינימום: {product.minStock}
