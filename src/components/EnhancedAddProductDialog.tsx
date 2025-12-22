@@ -144,6 +144,19 @@ const EnhancedAddProductDialog = ({
     }
   }, [dialogOpen]);
 
+  // Lock body scroll when dialog is open
+  React.useEffect(() => {
+    if (dialogOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [dialogOpen]);
+
   // Portal modal
   const modal = dialogOpen
     ? createPortal(

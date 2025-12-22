@@ -417,7 +417,7 @@ const Products = () => {
             איפוס סינון
           </Button>
         </div>
-        <div className="flex gap-2 justify-end mb-2 sm:mb-0">
+        <div className="flex flex-col sm:flex-row gap-2 justify-center sm:justify-end mb-2 sm:mb-0">
           <ExcelImportDialog onImport={handleBarcodeImport} />
           <EnhancedAddProductDialog onAdd={handleAddProduct} barcodeDatabase={barcodeDatabase} />
           <Button onClick={downloadCSV} variant="outline" size="sm">

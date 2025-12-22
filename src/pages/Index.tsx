@@ -376,35 +376,72 @@ const Index = () => {
       )}
 
       {/* Action buttons */}
-      <div className="flex flex-row w-full gap-12 mb-6 items-center font-bold">
-        <button className="flex flex-col items-center gap-1 text-primary hover:text-blue-700">
-          <BarChart size={24} />
-          <span className="text-xs">סטטיסטיקות</span>
-        </button>
-        <button onClick={() => setScannerOpen(true)} className="flex flex-col items-center gap-1 text-green-600 hover:text-green-800">
-          <ScanBarcode size={24} />
-          <span className="text-xs">סרוק</span>
-        </button>
-        <button className="flex flex-col items-center gap-1 text-fuchsia-600 hover:text-fuchsia-800">
-          <ClipboardList size={24} />
-          <span className="text-xs">הזמנות</span>
-        </button>
-        <button className="flex flex-col items-center gap-1 text-gray-600 hover:text-gray-800" onClick={() => setActivityLogOpen(true)}>
-          <MoreHorizontal size={24} />
-          <span className="text-xs">פעולות</span>
-        </button>
-        <button onClick={() => setRemoveScannerOpen(true)} className="flex flex-col items-center gap-1 text-red-600 hover:text-red-800">
-          <ArrowDownCircle size={24} />
-          <span className="text-xs">משיכה</span>
-        </button>
-        <button className="flex flex-col items-center gap-1 text-yellow-600 hover:text-yellow-800">
-          <DollarSign size={24} />
-          <span className="text-xs">עדכון מחיר</span>
-        </button>
-        <button className="flex flex-col items-center gap-1 text-cyan-600 hover:text-cyan-800">
-          <CreditCard size={24} />
-          <span className="text-xs">קרדיטים</span>
-        </button>
+      <div className="w-full mb-6">
+        {/* Mobile carousel - visible on small screens */}
+        <div className="md:hidden overflow-x-auto pb-2">
+          <div className="flex gap-6 font-bold min-w-min px-2">
+            <button className="flex flex-col items-center gap-1 text-primary hover:text-blue-700 flex-shrink-0">
+              <BarChart size={24} />
+              <span className="text-xs whitespace-nowrap">סטטיסטיקות</span>
+            </button>
+            <button onClick={() => setScannerOpen(true)} className="flex flex-col items-center gap-1 text-green-600 hover:text-green-800 flex-shrink-0">
+              <ScanBarcode size={24} />
+              <span className="text-xs whitespace-nowrap">סרוק</span>
+            </button>
+            <button className="flex flex-col items-center gap-1 text-fuchsia-600 hover:text-fuchsia-800 flex-shrink-0">
+              <ClipboardList size={24} />
+              <span className="text-xs whitespace-nowrap">הזמנות</span>
+            </button>
+            <button className="flex flex-col items-center gap-1 text-gray-600 hover:text-gray-800 flex-shrink-0" onClick={() => setActivityLogOpen(true)}>
+              <MoreHorizontal size={24} />
+              <span className="text-xs whitespace-nowrap">פעולות</span>
+            </button>
+            <button onClick={() => setRemoveScannerOpen(true)} className="flex flex-col items-center gap-1 text-red-600 hover:text-red-800 flex-shrink-0">
+              <ArrowDownCircle size={24} />
+              <span className="text-xs whitespace-nowrap">משיכה</span>
+            </button>
+            <button className="flex flex-col items-center gap-1 text-yellow-600 hover:text-yellow-800 flex-shrink-0">
+              <DollarSign size={24} />
+              <span className="text-xs whitespace-nowrap">עדכון מחיר</span>
+            </button>
+            <button className="flex flex-col items-center gap-1 text-cyan-600 hover:text-cyan-800 flex-shrink-0">
+              <CreditCard size={24} />
+              <span className="text-xs whitespace-nowrap">קרדיטים</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Desktop layout - hidden on small screens */}
+        <div className="hidden md:flex flex-row w-full gap-12 items-center font-bold">
+          <button className="flex flex-col items-center gap-1 text-primary hover:text-blue-700">
+            <BarChart size={24} />
+            <span className="text-xs">סטטיסטיקות</span>
+          </button>
+          <button onClick={() => setScannerOpen(true)} className="flex flex-col items-center gap-1 text-green-600 hover:text-green-800">
+            <ScanBarcode size={24} />
+            <span className="text-xs">סרוק</span>
+          </button>
+          <button className="flex flex-col items-center gap-1 text-fuchsia-600 hover:text-fuchsia-800">
+            <ClipboardList size={24} />
+            <span className="text-xs">הזמנות</span>
+          </button>
+          <button className="flex flex-col items-center gap-1 text-gray-600 hover:text-gray-800" onClick={() => setActivityLogOpen(true)}>
+            <MoreHorizontal size={24} />
+            <span className="text-xs">פעולות</span>
+          </button>
+          <button onClick={() => setRemoveScannerOpen(true)} className="flex flex-col items-center gap-1 text-red-600 hover:text-red-800">
+            <ArrowDownCircle size={24} />
+            <span className="text-xs">משיכה</span>
+          </button>
+          <button className="flex flex-col items-center gap-1 text-yellow-600 hover:text-yellow-800">
+            <DollarSign size={24} />
+            <span className="text-xs">עדכון מחיר</span>
+          </button>
+          <button className="flex flex-col items-center gap-1 text-cyan-600 hover:text-cyan-800">
+            <CreditCard size={24} />
+            <span className="text-xs">קרדיטים</span>
+          </button>
+        </div>
       </div>
 
       {/* Dashboard Main */}
