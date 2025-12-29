@@ -47,27 +47,65 @@ const EnhancedAddProductDialog = ({
   });
   const [dialogOpen, setDialogOpen] = useState(open);
 
+  // Effect to handle initialBarcode and auto-fill when dialog opens
   React.useEffect(() => {
     setDialogOpen(open);
-    if (initialBarcode) {
-      setProduct((prev) => ({ ...prev, barcode: initialBarcode }));
+    if (open && initialBarcode) {
+      console.log("Dialog opened with barcode:", initialBarcode);
+      console.log("BarcodeDatabase:", barcodeDatabase);
+      
+      // First check tempProductData from localStorage (from Index.tsx)
+      const tempData = localStorage.getItem('tempProductData');
+      if (tempData) {
+        try {
+          const parsed = JSON.parse(tempData);
+          console.log("Found tempProductData:", parsed);
+          setProduct(prev => ({
+            ...prev,
+            ...parsed,
+          }));
+          return;
+        } catch (e) {
+          console.error("Error parsing tempProductData:", e);
+        }
+      }
+      
+      // Otherwise try auto-filling from barcodeDatabase
+      if (barcodeDatabase && barcodeDatabase[initialBarcode]) {
+        const dbProd = barcodeDatabase[initialBarcode];
+        console.log("Found in barcodeDatabase:", dbProd);
+        setProduct(prev => ({
+          ...prev,
+          barcode: initialBarcode,
+          name: dbProd.name || "",
+          supplier: dbProd.supplier || "",
+          minStock: dbProd.minStock || 1,
+          price: dbProd.unitPrice || dbProd.price || 0,
+        }));
+      } else {
+        // Just set the barcode
+        setProduct(prev => ({ ...prev, barcode: initialBarcode }));
+      }
     }
-  }, [open, initialBarcode]);
+  }, [open, initialBarcode, barcodeDatabase]);
 
   // השלמה אוטומטית ממאגר הברקודים
   const handleBarcodeChangeAndAutoFill = (barcodeValue: string) => {
-    let autoFields = {};
+    console.log("Auto-filling for barcode:", barcodeValue);
+    
+    let autoFields: any = {};
     if (barcodeDatabase && barcodeDatabase[barcodeValue]) {
       const dbProd = barcodeDatabase[barcodeValue];
+      console.log("Found product in database:", dbProd);
+      
       autoFields = {
-        name: dbProd.name ?? "",
-        supplier: dbProd.supplier ?? "",
-        minStock: dbProd.minStock ?? 1,
+        name: dbProd.name || "",
+        supplier: dbProd.supplier || "",
+        minStock: dbProd.minStock || 1,
+        price: dbProd.unitPrice || dbProd.price || 0,
       };
-      if (dbProd.name) {
-        toast({ title: "נמצא במאגר: " + dbProd.name });
-      }
     }
+    
     setProduct((prev) => ({
       ...prev,
       barcode: barcodeValue,
@@ -124,22 +162,9 @@ const EnhancedAddProductDialog = ({
     }));
   };
 
-  // Add effect to load temp product data
+  // Cleanup effect - remove temp data when dialog closes
   React.useEffect(() => {
-    if (dialogOpen) {
-      const tempData = localStorage.getItem('tempProductData');
-      if (tempData) {
-        const parsedData = JSON.parse(tempData);
-        setProduct(prev => ({
-          ...prev,
-          ...parsedData,
-          minStock: parsedData.minStock || 1,
-          price: parsedData.price || 0,
-          quantity: parsedData.quantity || 0,
-        }));
-      }
-    } else {
-      // Clean up temp data when dialog closes
+    if (!dialogOpen) {
       localStorage.removeItem('tempProductData');
     }
   }, [dialogOpen]);

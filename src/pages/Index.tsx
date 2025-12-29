@@ -540,14 +540,14 @@ const Index = () => {
           <InventoryTable products={products.slice(0, 4)} />
         </div>
         {/* Side stats/charts only (notifications removed from here) */}
-        <aside className="col-span-1 flex flex-col gap-6 min-w-0">
+        {/* <aside className="col-span-1 flex flex-col gap-6 min-w-0">
           <div className="bg-card shadow border rounded-xl p-6 flex-1">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <ArrowUp size={20} className="text-primary" /> מגמות וסטטיסטיקות
             </h2>
             <StatsChart />
           </div>
-        </aside>
+        </aside> */}
       </section>
       <ActivityLogModal open={activityLogOpen} onOpenChange={setActivityLogOpen} log={activityLog} />
     </main>

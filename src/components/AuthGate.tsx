@@ -9,10 +9,7 @@ export default function AuthGate({ children }: Props) {
   const [user, setUser] = React.useState<string | null>(() => {
     return localStorage.getItem("qa_current_user");
   });
-  const [restaurants, setRestaurants] = React.useState<string[]>(() => {
-    // Mocked restaurant list for the user
-    return ["מסעדה 1", "מסעדה 2", "מסעדה 3"];
-  });
+  
   const [selectedRestaurant, setSelectedRestaurant] = React.useState<string | null>(() => {
     return localStorage.getItem("qa_selected_restaurant") || null;
   });
@@ -39,39 +36,13 @@ export default function AuthGate({ children }: Props) {
     setSelectedRestaurant(null);
   }
 
-  function handleRestaurantChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const restaurant = e.target.value;
-    setSelectedRestaurant(restaurant);
-    localStorage.setItem("qa_selected_restaurant", restaurant);
-  }
-
   if (!user) {
     return <AuthPage onAuth={handleAuth} />;
   }
 
   return (
     <div className="min-h-screen">
-      <div className="flex justify-between items-center p-3">
-        <div>
-          <label htmlFor="restaurant-select" className="mr-2 ml-1 text-sm">
-            בחר מסעדה:
-          </label>
-          <select
-            id="restaurant-select"
-            value={selectedRestaurant || ""}
-            onChange={handleRestaurantChange}
-            className="py-1 border rounded text-sm"
-          >
-            <option value="" disabled>
-              בחר מסעדה
-            </option>
-            {restaurants.map((restaurant) => (
-              <option key={restaurant} value={restaurant}>
-                {restaurant}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="flex justify-end p-3">
         <button
           onClick={logout}
           className="px-3 py-1 border rounded text-sm bg-white"
@@ -81,7 +52,6 @@ export default function AuthGate({ children }: Props) {
         </button>
       </div>
       <div>
-        {!selectedRestaurant && <div className="p-3 text-sm text-red-600">אנא בחר מסעדה כדי להמשיך.</div>}
         {selectedRestaurant && children}
       </div>
     </div>

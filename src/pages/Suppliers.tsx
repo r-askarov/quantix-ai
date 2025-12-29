@@ -6,7 +6,8 @@ import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import i18n from '../i18n'; // import your i18n config
+import SupplierProductsDialog from "@/components/SupplierProductsDialog";
+import i18n from '../i18n';
 import { useTranslation } from "react-i18next";
 
 const RTL_LANGS = ["he", "ar", "fa", "ur"];
@@ -56,6 +57,14 @@ const Suppliers = () => {
     Object.values(barcodeDatabase).forEach(prod => prod.supplier && set.add(prod.supplier.trim()));
     return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b, "he"));
   }, [barcodeDatabase]);
+
+  const [showProductsDialog, setShowProductsDialog] = React.useState(false);
+  const [selectedSupplierForProducts, setSelectedSupplierForProducts] = React.useState<string | null>(null);
+
+  const handleViewProducts = (supplierName: string) => {
+    setSelectedSupplierForProducts(supplierName);
+    setShowProductsDialog(true);
+  };
 
   const filteredSuppliers = React.useMemo(() => {
     if (!search.trim()) return suppliers;
@@ -192,6 +201,7 @@ const Suppliers = () => {
                 deadlineHour={deadlineHour}
                 onNewOrder={handleNewOrder}
                 onViewSupplier={handleViewSupplier}
+                onViewProducts={handleViewProducts}
                 orderStatus={orderStatus}
                 nextDeliveryDate={nextDeliveryDate}
               />
@@ -206,6 +216,13 @@ const Suppliers = () => {
           </div>
         </div>
       )}
+
+      <SupplierProductsDialog
+        open={showProductsDialog}
+        onClose={() => setShowProductsDialog(false)}
+        supplierName={selectedSupplierForProducts}
+        barcodeDatabase={barcodeDatabase}
+      />
     </main>
   );
 };

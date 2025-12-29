@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Package, AlertCircle, X } from "lucide-react";
+import { Search, Package, AlertCircle, X, Trash2 } from "lucide-react";
 import { BarcodeDatabase as BarcodeDB } from "@/components/ExcelImportDialog";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +17,7 @@ const BarcodeDatabase = () => {
   const { toast } = useToast();
   const [searchBarcode, setSearchBarcode] = React.useState("");
   const [barcodeDatabase, setBarcodeDatabase] = React.useState<BarcodeDB>({});
+  const [loading, setLoading] = React.useState(true);
   const [searchResult, setSearchResult] = React.useState<{
     found: boolean;
     product?: { name: string; supplier?: string; minStock?: number };
@@ -32,6 +33,7 @@ const BarcodeDatabase = () => {
         console.error('Error loading barcode database:', error);
       }
     }
+    setLoading(false);
   }, []);
 
   const handleSearch = () => {
@@ -88,7 +90,7 @@ const BarcodeDatabase = () => {
 
       <div className="grid gap-6">
         {/* סטטיסטיקת המאגר */}
-        <Card>
+        <Card className="max-w-2xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
@@ -110,122 +112,147 @@ const BarcodeDatabase = () => {
           </CardContent>
         </Card>
 
-        {/* חיפוש ברקוד */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Search className="h-5 w-5" />
-              חיפוש ברקוד
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Label htmlFor="search-barcode">ברקוד לחיפוש</Label>
-                <Input
-                  id="search-barcode"
-                  value={searchBarcode}
-                  onChange={(e) => setSearchBarcode(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="הכנס ברקוד לחיפוש..."
-                  className="text-left"
-                />
-              </div>
-              <div className="flex items-end">
-                <button
-                  onClick={handleSearch}
-                  className="h-10 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-                >
-                  חפש
-                </button>
-              </div>
-            </div>
-
-            {/* תוצאות חיפוש */}
-            {searchResult && (
-              <Card className={searchResult.found ? "border-green-500" : "border-red-500"}>
-                <CardContent className="pt-6">
-                  {searchResult.found && searchResult.product ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="default" className="bg-green-500">
-                          ✓ נמצא במאגר
-                        </Badge>
-                      </div>
-                      <div className="grid gap-2">
-                        <div>
-                          <Label className="text-sm font-medium">שם המוצר:</Label>
-                          <p className="text-lg font-semibold">{searchResult.product.name}</p>
-                        </div>
-                        {searchResult.product.supplier && (
-                          <div>
-                            <Label className="text-sm font-medium">ספק:</Label>
-                            <p>{searchResult.product.supplier}</p>
-                          </div>
-                        )}
-                        {searchResult.product.minStock !== undefined && (
-                          <div>
-                            <Label className="text-sm font-medium">מלאי מינימום:</Label>
-                            <p>{searchResult.product.minStock}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="destructive">
-                          ✗ לא נמצא במאגר
-                        </Badge>
-                      </div>
-                      <p className="text-muted-foreground">
-                        הברקוד "{searchBarcode}" לא קיים במאגר הנוכחי.
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* רשימת מוצרים במאגר */}
-        {databaseSize > 0 && (
-          <Card className="max-w-2xl">
+        {/* Two-column layout: Products list on left, Search on right */}
+        <div className="grid grid-cols-2 gap-6">
+          {/* רשימת מוצרים במאגר */}
+          <Card>
             <CardHeader>
               <CardTitle>מוצרים במאגר</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {Object.entries(barcodeDatabase).map(([barcode, product]) => (
-                  <div key={barcode} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">{product.name}</p>
-                      <p className="text-sm text-muted-foreground">ברקוד: {barcode}</p>
-                      {product.supplier && (
-                        <p className="text-sm text-muted-foreground">ספק: {product.supplier}</p>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+                    <p className="text-sm text-muted-foreground">טוען מוצרים...</p>
+                  </div>
+                </div>
+              ) : databaseSize === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>אין מוצרים במאגר</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {Object.entries(barcodeDatabase).map(([barcode, product]) => (
+                    <div key={barcode} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium">{product.name}</p>
+                        <p className="text-sm text-muted-foreground">ברקוד: {barcode}</p>
+                        {product.supplier && (
+                          <p className="text-sm text-muted-foreground">ספק: {product.supplier}</p>
+                        )}
+                      </div>
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => handleDeleteBarcode(barcode)}
+                        className="p-1 rounded hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors flex-shrink-0"
+                        aria-label={`Delete barcode ${barcode}`}
+                        title="Delete barcode"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                      {product.minStock !== undefined && (
+                        <Badge variant="outline">
+                          מלאי מינימום: {product.minStock}
+                        </Badge>
                       )}
                     </div>
-                    {/* Delete Button */}
-                    <button
-                      onClick={() => handleDeleteBarcode(barcode)}
-                      className="p-1 rounded hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors flex-shrink-0"
-                      aria-label={`Delete barcode ${barcode}`}
-                      title="Delete barcode"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                    {product.minStock !== undefined && (
-                      <Badge variant="outline">
-                        מלאי מינימום: {product.minStock}
-                      </Badge>
-                    )}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
-        )}
+
+          {/* חיפוש ברקוד */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5" />
+                חיפוש ברקוד
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label htmlFor="search-barcode">ברקוד לחיפוש</Label>
+                  <Input
+                    id="search-barcode"
+                    value={searchBarcode}
+                    onChange={(e) => setSearchBarcode(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="הכנס ברקוד לחיפוש..."
+                    className="text-left"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={handleSearch}
+                    className="h-10 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                  >
+                    חפש
+                  </button>
+                </div>
+              </div>
+
+              {/* תוצאות חיפוש */}
+              {searchResult && (
+                <Card className={searchResult.found ? "border-green-500" : "border-red-500"}>
+                  <CardContent className="pt-6">
+                    {searchResult.found && searchResult.product ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="default" className="bg-green-500">
+                            ✓ נמצא במאגר
+                          </Badge>
+                        </div>
+                        <div className="grid gap-2">
+                          <div>
+                            <Label className="text-sm font-medium">שם המוצר:</Label>
+                            <p className="text-lg font-semibold">{searchResult.product.name}</p>
+                          </div>
+                          {searchResult.product.supplier && (
+                            <div>
+                              <Label className="text-sm font-medium">ספק:</Label>
+                              <p>{searchResult.product.supplier}</p>
+                            </div>
+                          )}
+                          {searchResult.product.minStock !== undefined && (
+                            <div>
+                              <Label className="text-sm font-medium">מלאי מינימום:</Label>
+                              <p>{searchResult.product.minStock}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="destructive">
+                            ✗ לא נמצא במאגר
+                          </Badge>
+                        </div>
+                        <p className="text-muted-foreground">
+                          הברקוד "{searchBarcode}" לא קיים במאגר הנוכחי.
+                        </p>
+                      </div>
+                    )}
+                    {searchResult.found && searchResult.product && (
+                      <div className="mt-4 pt-4 border-t flex gap-2">
+                        <button
+                          onClick={() => handleDeleteBarcode(searchBarcode.trim())}
+                          className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-md transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          מחק מוצר
+                        </button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </main>
   );

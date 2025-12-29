@@ -17,7 +17,7 @@ import i18n from '../i18n';
 const navs = [
   { to: "/", label: "דשבורד", icon: <LayoutDashboard size={20} /> },
   { to: "/products", label: "מוצרים", icon: <Boxes size={20} /> },
-  { to: "/orders", label: "הזמנות", icon: <ShoppingCart size={20} /> },
+  // { to: "/orders", label: "הזמנות", icon: <ShoppingCart size={20} /> },
   { to: "/suppliers", label: "ספקים", icon: <Truck size={20} /> },
   { to: "/barcode-database", label: "מאגר ברקודים", icon: <QrCode size={20} /> },
 ];

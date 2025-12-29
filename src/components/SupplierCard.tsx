@@ -1,7 +1,7 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { Calendar, Edit, ArrowRight } from "lucide-react";
+import { Calendar, Edit, ArrowRight, Package } from "lucide-react";
 
 interface SupplierCardProps {
   supplierName: string;
@@ -9,6 +9,7 @@ interface SupplierCardProps {
   deadlineHour?: string;
   onNewOrder: (supplierName: string) => void;
   onViewSupplier: (supplierName: string) => void;
+  onViewProducts?: (supplierName: string) => void;
   orderStatus?: string;
   nextDeliveryDate?: string;
 }
@@ -29,6 +30,7 @@ const SupplierCard: React.FC<SupplierCardProps> = ({
   deadlineHour,
   onNewOrder,
   onViewSupplier,
+  onViewProducts,
   orderStatus,
   nextDeliveryDate
 }) => {
@@ -77,13 +79,24 @@ const SupplierCard: React.FC<SupplierCardProps> = ({
             <span className="text-muted-foreground">לא הוזמנו הזמנות לאחרונה</span>
           )}
         </div>
-        <Button
-          variant="ghost"
-          className="inline-flex items-center gap-1 text-blue-700 font-semibold"
-          onClick={() => onViewSupplier(supplierName)}
-        >
-          מעבר לספק <ArrowRight className="w-4 h-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            className="inline-flex items-center gap-1 text-blue-700 font-semibold"
+            onClick={() => onViewSupplier(supplierName)}
+          >
+            מעבר לספק <ArrowRight className="w-4 h-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            className="inline-flex items-center gap-1 text-gray-700"
+            onClick={() => onViewProducts(supplierName)}
+          >
+            <Package className="w-4 h-4 ml-1" />
+            הצג מוצרים
+          </Button>
+        </div>
       </div>
     </div>
   );
