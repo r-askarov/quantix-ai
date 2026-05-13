@@ -4,12 +4,67 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Search, Package, AlertCircle, X, Trash2 } from "lucide-react";
 import { BarcodeDatabase as BarcodeDB } from "@/components/ExcelImportDialog";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
 
 const RTL_LANGS = ["he", "ar", "fa", "ur"];
+
+type DeleteConfirmationSetter = React.Dispatch<
+  React.SetStateAction<{ isOpen: boolean; barcode: string | null }>
+>;
+
+const ProductsList = React.memo(
+  function ProductsList({
+    barcodeDatabase,
+    setDeleteConfirmation,
+  }: {
+    barcodeDatabase: BarcodeDB;
+    setDeleteConfirmation: DeleteConfirmationSetter;
+  }) {
+    return (
+      <>
+        {Object.entries(barcodeDatabase).map(([barcode, product]) => (
+          <div key={barcode} className="flex items-center justify-between p-3 border rounded-lg">
+            <div>
+              <p className="font-medium">{product.name}</p>
+              <p className="text-sm text-muted-foreground">ברקוד: {barcode}</p>
+              {product.supplier && (
+                <p className="text-sm text-muted-foreground">ספק: {product.supplier}</p>
+              )}
+            </div>
+            <button
+              onClick={() => setDeleteConfirmation({ isOpen: true, barcode })}
+              className="p-1 rounded hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors flex-shrink-0"
+              aria-label={`Delete barcode ${barcode}`}
+              title="Delete barcode"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            {product.minStock !== undefined && (
+              <Badge variant="outline">
+                מלאי מינימום: {product.minStock}
+              </Badge>
+            )}
+          </div>
+        ))}
+      </>
+    );
+  },
+  (prevProps, nextProps) =>
+    prevProps.barcodeDatabase === nextProps.barcodeDatabase &&
+    prevProps.setDeleteConfirmation === nextProps.setDeleteConfirmation
+);
 
 const BarcodeDatabase = () => {
   const { i18n } = useTranslation();
@@ -22,6 +77,11 @@ const BarcodeDatabase = () => {
     found: boolean;
     product?: { name: string; supplier?: string; minStock?: number };
   } | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = React.useState<{
+    isOpen: boolean;
+    barcode: string | null;
+  }>({ isOpen: false, barcode: null });
+  const [clearConfirmationOpen, setClearConfirmationOpen] = React.useState(false);
 
   // טעינת מאגר ברקודים מ-localStorage אם קיים
   React.useEffect(() => {
@@ -36,7 +96,7 @@ const BarcodeDatabase = () => {
     setLoading(false);
   }, []);
 
-  const handleSearch = () => {
+  const handleSearch = React.useCallback(() => {
     if (!searchBarcode.trim()) {
       setSearchResult(null);
       return;
@@ -47,13 +107,20 @@ const BarcodeDatabase = () => {
       found: !!product,
       product: product || undefined,
     });
-  };
+  }, [searchBarcode, barcodeDatabase]);
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+  const handleInputChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchBarcode(e.target.value);
+  }, []);
+
+  // Auto-search with 300ms debounce
+  React.useEffect(() => {
+    const debounceTimer = setTimeout(() => {
       handleSearch();
-    }
-  };
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchBarcode, handleSearch]);
 
   const handleDeleteBarcode = (barcodeToDelete: string) => {
     const updatedDatabase = { ...barcodeDatabase };
@@ -77,6 +144,31 @@ const BarcodeDatabase = () => {
       setSearchResult(null);
       setSearchBarcode("");
     }
+
+    setDeleteConfirmation({ isOpen: false, barcode: null });
+  };
+
+  const handleClearDatabase = () => {
+    const updatedDatabase: BarcodeDB = {};
+    setBarcodeDatabase(updatedDatabase);
+    localStorage.setItem('barcodeDatabase', JSON.stringify(updatedDatabase));
+
+    // Dispatch storage event for other components
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'barcodeDatabase',
+      newValue: JSON.stringify(updatedDatabase)
+    }));
+
+    toast({
+      title: 'מאגר נוקה',
+      description: 'כל הברקודים הוסרו בהצלחה מהמאגר',
+    });
+
+    // Clear search state
+    setSearchResult(null);
+    setSearchBarcode('');
+
+    setClearConfirmationOpen(false);
   };
 
   const databaseSize = Object.keys(barcodeDatabase).length;
@@ -102,6 +194,15 @@ const BarcodeDatabase = () => {
               <Badge variant="secondary" className="text-lg px-4 py-2">
                 {databaseSize} מוצרים במאגר
               </Badge>
+              <div className="ml-auto">
+                <button
+                  onClick={() => setClearConfirmationOpen(true)}
+                  disabled={databaseSize === 0}
+                  className="px-3 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded-md transition-colors disabled:opacity-50"
+                >
+                  נקה מאגר
+                </button>
+              </div>
               {databaseSize === 0 && (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <AlertCircle className="h-4 w-4" />
@@ -133,31 +234,7 @@ const BarcodeDatabase = () => {
                 </div>
               ) : (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {Object.entries(barcodeDatabase).map(([barcode, product]) => (
-                    <div key={barcode} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{product.name}</p>
-                        <p className="text-sm text-muted-foreground">ברקוד: {barcode}</p>
-                        {product.supplier && (
-                          <p className="text-sm text-muted-foreground">ספק: {product.supplier}</p>
-                        )}
-                      </div>
-                      {/* Delete Button */}
-                      <button
-                        onClick={() => handleDeleteBarcode(barcode)}
-                        className="p-1 rounded hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors flex-shrink-0"
-                        aria-label={`Delete barcode ${barcode}`}
-                        title="Delete barcode"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                      {product.minStock !== undefined && (
-                        <Badge variant="outline">
-                          מלאי מינימום: {product.minStock}
-                        </Badge>
-                      )}
-                    </div>
-                  ))}
+                  <ProductsList barcodeDatabase={barcodeDatabase} setDeleteConfirmation={setDeleteConfirmation} />
                 </div>
               )}
             </CardContent>
@@ -178,19 +255,10 @@ const BarcodeDatabase = () => {
                   <Input
                     id="search-barcode"
                     value={searchBarcode}
-                    onChange={(e) => setSearchBarcode(e.target.value)}
-                    onKeyPress={handleKeyPress}
+                    onChange={handleInputChange}
                     placeholder="הכנס ברקוד לחיפוש..."
-                    className="text-left"
+                    className="text-right mt-1"
                   />
-                </div>
-                <div className="flex items-end">
-                  <button
-                    onClick={handleSearch}
-                    className="h-10 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-                  >
-                    חפש
-                  </button>
                 </div>
               </div>
 
@@ -239,7 +307,7 @@ const BarcodeDatabase = () => {
                     {searchResult.found && searchResult.product && (
                       <div className="mt-4 pt-4 border-t flex gap-2">
                         <button
-                          onClick={() => handleDeleteBarcode(searchBarcode.trim())}
+                          onClick={() => setDeleteConfirmation({ isOpen: true, barcode: searchBarcode.trim() })}
                           className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-md transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -254,6 +322,44 @@ const BarcodeDatabase = () => {
           </Card>
         </div>
       </div>
+
+      <AlertDialog open={deleteConfirmation.isOpen} onOpenChange={(isOpen) => 
+        setDeleteConfirmation({ ...deleteConfirmation, isOpen })
+      }>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>אישור מחיקה</AlertDialogTitle>
+            <AlertDialogDescription>
+              האם אתה בטוח שברצונך למחוק את הברקוד {deleteConfirmation.barcode}? פעולה זו לא ניתנת לשחזור.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex gap-2 justify-end">
+            <AlertDialogCancel>ביטול</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteConfirmation.barcode && handleDeleteBarcode(deleteConfirmation.barcode)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              מחק
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={clearConfirmationOpen} onOpenChange={(isOpen) => setClearConfirmationOpen(isOpen)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>אישור ניקוי מאגר</AlertDialogTitle>
+            <AlertDialogDescription>
+              האם אתה בטוח שברצונך למחוק את כל הברקודים? פעולה זו לא ניתנת לשחזור.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex gap-2 justify-end">
+            <AlertDialogCancel>ביטול</AlertDialogCancel>
+            <AlertDialogAction onClick={handleClearDatabase} className="bg-red-600 hover:bg-red-700">
+              נקה מאגר
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 };

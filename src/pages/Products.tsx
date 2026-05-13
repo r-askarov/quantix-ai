@@ -445,7 +445,23 @@ const Products = () => {
       {/* טבלה מאוחדת בלבד */}
       <div className="my-6">
         {/* שולח את products עם remarks ל-ProductsTable */}
-        <ProductsTable products={filteredProducts} />
+        <ProductsTable products={filteredProducts} onEdit={(updated) => {
+          // Update base products array (manual products) and persist
+          setProducts(prev => {
+            const idx = prev.findIndex(p => p.barcode === updated.barcode);
+            let next;
+            if (idx !== -1) {
+              next = [...prev];
+              next[idx] = { ...next[idx], ...updated };
+            } else {
+              // If product originated from batches only, add it to manual products
+              next = [...prev, { ...updated }];
+            }
+            try { localStorage.setItem('products', JSON.stringify(next)); } catch (e) {}
+            toast({ title: 'מוצר עודכן' });
+            return next;
+          });
+        }} />
       </div>
 
       {/* סכום כולל */}

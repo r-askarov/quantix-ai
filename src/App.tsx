@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -27,6 +27,17 @@ const App = () => {
       },
     },
   }));
+
+  useEffect(() => {
+    // Clear legacy local auth keys since app now uses a single universal user
+    try {
+      localStorage.removeItem("qa_current_user");
+      localStorage.removeItem("qa_selected_restaurant");
+      localStorage.removeItem("qa_users");
+    } catch (e) {
+      // ignore
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

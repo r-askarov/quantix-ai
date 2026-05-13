@@ -59,15 +59,6 @@ const InventoryTableRow = ({
 		</td>
 
 		<td className="px-4 py-2">{item.supplier}</td>
-		<td className="px-4 py-2">
-			<Button
-				size="sm"
-				variant="outline"
-				className="font-bold hover:bg-muted hover:text-black"
-			>
-				ערוך
-			</Button>
-		</td>
 	</tr>
 );
 
@@ -129,9 +120,6 @@ const InventoryTable = ({ products }: { products?: typeof mockData }) => {
 									<td className="px-4 py-2 font-semibold">{item.name}</td>
 									<td className={item.quantity === 0 ? "px-4 py-2 text-red-600 font-bold" : "px-4 py-2"}>{item.quantity}</td>
 									<td className="px-4 py-2">{item.supplier}</td>
-									<td className="px-4 py-2">
-										<Button size="sm" variant="outline" className="font-bold hover:bg-muted hover:text-black">ערוך</Button>
-									</td>
 								</tr>
 							))
 						)}

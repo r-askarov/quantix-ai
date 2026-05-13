@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CalendarIcon, X } from "lucide-react";
 import { Product } from "@/pages/Products";
+import { BarcodeCache } from "@/utils/barcodeCache";
 
 // טעינה של DatePicker עדין - ניתן לעטוף ב-Input במידת הצורך
 function DateInput({ value, onChange }: { value: string | null; onChange: (val: string | null) => void }) {
@@ -36,7 +37,7 @@ const EnhancedAddProductDialog = ({
   onOpenChange?: (open: boolean) => void;
   initialBarcode?: string;
 }) => {
-  const [product, setProduct] = useState<Partial<Product>>({
+  const initialProduct: Partial<Product> = {
     barcode: initialBarcode,
     name: "",
     supplier: "",
@@ -44,7 +45,9 @@ const EnhancedAddProductDialog = ({
     price: 0,
     quantity: 0,
     expiryDate: null,
-  });
+  };
+
+  const [product, setProduct] = useState<Partial<Product>>(initialProduct);
   const [dialogOpen, setDialogOpen] = useState(open);
 
   // Effect to handle initialBarcode and auto-fill when dialog opens
@@ -111,6 +114,84 @@ const EnhancedAddProductDialog = ({
       barcode: barcodeValue,
       ...autoFields,
     }));
+    // Start async lookup (debounced) to enrich with external sources
+    startLookupDebounced(barcodeValue);
+  };
+
+  const lookupInProgressRef = React.useRef(false);
+  const lookupTimeoutRef = React.useRef<number | null>(null);
+
+  const startLookupDebounced = (code: string) => {
+    if (lookupTimeoutRef.current) {
+      window.clearTimeout(lookupTimeoutRef.current as unknown as number);
+    }
+    lookupTimeoutRef.current = window.setTimeout(() => {
+      fetchAndFill(code);
+    }, 600);
+  };
+
+  const fetchAndFill = async (code: string) => {
+    if (!code) return;
+    if (lookupInProgressRef.current) return;
+    lookupInProgressRef.current = true;
+    try {
+      // 1) Local cache
+      const cached = BarcodeCache.getProduct(code);
+      if (cached) {
+        setProduct(prev => ({
+          ...prev,
+          barcode: code,
+          name: cached.name || prev.name,
+          supplier: cached.supplier || prev.supplier,
+          price: cached.price ?? prev.price,
+        }));
+        toast({ title: "ברקוד זוהה מהמאגר המקומי!", description: `נמצא: ${cached.name}` });
+        return;
+      }
+
+      // 2) Revalto API
+      try {
+        const url = `https://revalto-api-u90k.onrender.com/product/${encodeURIComponent(code)}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const json = await res.json();
+          if (json && (json.name || json.product)) {
+            const name = json.name || json.product?.name || json.product?.product_name;
+            const supplier = json.supplier || json.manufacturer || "";
+            const price = json.price ?? 0;
+            setProduct(prev => ({ ...prev, barcode: code, name: name || prev.name, supplier: supplier || prev.supplier, price: price || prev.price }));
+            toast({ title: "נמצא מוצר ב-Revalto", description: name });
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Revalto lookup failed", err);
+      }
+
+      // 3) OpenFoodFacts
+      try {
+        const offUrl = `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(code)}.json`;
+        const offRes = await fetch(offUrl);
+        if (offRes.ok) {
+          const offJson = await offRes.json();
+          if (offJson && offJson.status === 1 && offJson.product) {
+            const p = offJson.product;
+            const name = p.product_name || p.generic_name || "";
+            const supplier = p.brands || p.manufacturing_places || "";
+            setProduct(prev => ({ ...prev, barcode: code, name: name || prev.name, supplier: supplier || prev.supplier }));
+            toast({ title: "נמצא מוצר ב-OpenFoodFacts", description: name });
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("OpenFoodFacts lookup failed", err);
+      }
+
+      // If nothing found, just keep barcode
+      setProduct(prev => ({ ...prev, barcode: code }));
+    } finally {
+      lookupInProgressRef.current = false;
+    }
   };
 
   // שינוי שדה קלט רגיל
@@ -166,6 +247,22 @@ const EnhancedAddProductDialog = ({
   React.useEffect(() => {
     if (!dialogOpen) {
       localStorage.removeItem('tempProductData');
+      // Reset product fields when dialog closes
+      setProduct({
+        barcode: "",
+        name: "",
+        supplier: "",
+        minStock: 1,
+        price: 0,
+        quantity: 0,
+        expiryDate: null,
+      });
+      // clear any pending lookup
+      if (lookupTimeoutRef.current) {
+        window.clearTimeout(lookupTimeoutRef.current as unknown as number);
+        lookupTimeoutRef.current = null;
+      }
+      lookupInProgressRef.current = false;
     }
   }, [dialogOpen]);
 

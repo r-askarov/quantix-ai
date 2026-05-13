@@ -276,9 +276,9 @@ const Index = () => {
         </button>
       </header>
 
-      {/* Notifications Panel - Moved to top */}
+      {/* Notifications Panel - show alerts only for products in our products table */}
       <div className="bg-card shadow border rounded-xl p-6 w-full">
-        <NotificationsPanel />
+        <NotificationsPanel products={products as any} />
       </div>
 
       {/* Cards */}
