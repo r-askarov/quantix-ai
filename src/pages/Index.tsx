@@ -31,6 +31,7 @@ import {
   LogIn,
 } from "lucide-react";
 import { searchOpenFoodFacts } from "@/utils/barcodeSearch";
+import { supabase } from "../services/supabase";
 
 const RemoveProductDialog = ({
   open,
@@ -79,9 +80,7 @@ const RemoveProductDialog = ({
               min={1}
               max={product.quantity}
               value={quantity}
-              onChange={(e) =>
-                setQuantity(Number(e.target.value))
-              }
+              onChange={(e) => setQuantity(Number(e.target.value))}
             />
             <span className="text-xs text-muted-foreground">
               (מלאי נוכחי: {product.quantity})
@@ -113,7 +112,7 @@ const Index = () => {
   const [scannedBarcode, setScannedBarcode] = React.useState("");
   const [addDialogOpen, setAddDialogOpen] = React.useState(false);
   const [barcodeDatabase, setBarcodeDatabase] = React.useState<BarcodeDatabase>(
-    {}
+    {},
   );
   const [removeScannerOpen, setRemoveScannerOpen] = React.useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = React.useState(false);
@@ -125,7 +124,9 @@ const Index = () => {
   const [batches, setBatches] = React.useState<any[]>([]);
   const [visibleCards, setVisibleCards] = React.useState<string[]>(() => {
     const stored = localStorage.getItem("visibleCards");
-    return stored ? JSON.parse(stored) : ["totalItems", "lowStockAlerts", "openOrders", "activeWarehouses"];
+    return stored
+      ? JSON.parse(stored)
+      : ["totalItems", "lowStockAlerts", "openOrders", "activeWarehouses"];
   });
   const [editCardsOpen, setEditCardsOpen] = React.useState(false);
 
@@ -144,12 +145,23 @@ const Index = () => {
     }
   }, []);
 
-  React.useEffect(() => {
-    const stored = localStorage.getItem("products");
-    if (stored) {
-      setProducts(JSON.parse(stored));
+  const fetchProducts = async () => {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      return;
     }
-  }, [addDialogOpen, removeDialogOpen]); // update when dialogs close
+
+    setProducts(data);
+  };
+
+  React.useEffect(() => {
+    fetchProducts();
+  }, []);
 
   React.useEffect(() => {
     const storedLog = localStorage.getItem("activityLog");
@@ -169,8 +181,14 @@ const Index = () => {
 
   // Calculate total items from products and batches
   const totalItems = React.useMemo(() => {
-    const productTotal = products.reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
-    const batchTotal = batches.reduce((sum: number, b: any) => sum + (b.quantity || 0), 0);
+    const productTotal = products.reduce(
+      (sum: number, p: any) => sum + (p.quantity || 0),
+      0,
+    );
+    const batchTotal = batches.reduce(
+      (sum: number, b: any) => sum + (b.quantity || 0),
+      0,
+    );
     return productTotal + batchTotal;
   }, [products, batches]);
 
@@ -211,47 +229,53 @@ const Index = () => {
   };
 
   const handleBarcodeDetected = async (barcode: string) => {
-    console.log('🔍 Barcode scanned:', barcode);
+    console.log("🔍 Barcode scanned:", barcode);
     setScannedBarcode(barcode);
     setScannerOpen(false);
 
     // First check local database
-    const localDb = JSON.parse(localStorage.getItem('barcodeDatabase') || '{}');
+    const localDb = JSON.parse(localStorage.getItem("barcodeDatabase") || "{}");
     if (localDb[barcode]) {
-      console.log('✅ Found in local database:', localDb[barcode]);
+      console.log("✅ Found in local database:", localDb[barcode]);
       setAddDialogOpen(true);
       return;
     }
-    console.log('❌ Not found in local database, trying OpenFoodFacts...');
+    console.log("❌ Not found in local database, trying OpenFoodFacts...");
 
     // If not in local database, try Open Food Facts
     const openFoodData = await searchOpenFoodFacts(barcode);
     if (openFoodData) {
-      console.log('✅ Found in OpenFoodFacts:', openFoodData);
+      console.log("✅ Found in OpenFoodFacts:", openFoodData);
       // Store more detailed product data
-      localStorage.setItem('tempProductData', JSON.stringify({
-        barcode,
-        name: openFoodData.name,
-        supplier: openFoodData.brands || "",
-        category: openFoodData.categories || "",
-        quantity: 1, // Default quantity
-        minStock: 0, // Default minStock
-        price: 0, // Default price
-        description: openFoodData.generic_name || "",
-        packageSize: openFoodData.quantity || "",
-        // Add any other relevant fields from the API response
-      }));
+      localStorage.setItem(
+        "tempProductData",
+        JSON.stringify({
+          barcode,
+          name: openFoodData.name,
+          supplier: openFoodData.brands || "",
+          category: openFoodData.categories || "",
+          quantity: 1, // Default quantity
+          minStock: 0, // Default minStock
+          price: 0, // Default price
+          description: openFoodData.generic_name || "",
+          packageSize: openFoodData.quantity || "",
+          // Add any other relevant fields from the API response
+        }),
+      );
     } else {
-      console.log('❌ Product not found in OpenFoodFacts');
+      console.log("❌ Product not found in OpenFoodFacts");
       // Store minimal data for manual entry
-      localStorage.setItem('tempProductData', JSON.stringify({
-        barcode,
-        name: "",
-        supplier: "",
-        quantity: 1,
-        minStock: 0,
-        price: 0
-      }));
+      localStorage.setItem(
+        "tempProductData",
+        JSON.stringify({
+          barcode,
+          name: "",
+          supplier: "",
+          quantity: 1,
+          minStock: 0,
+          price: 0,
+        }),
+      );
     }
 
     setAddDialogOpen(true);
@@ -297,7 +321,11 @@ const Index = () => {
             title="התראות מלאי נמוך"
             value={lowStockAlerts.toString()}
             icon={<ArrowDown className="text-red-600" />}
-            change={lowStockAlerts > 0 ? `${lowStockAlerts} פריטים בעלויות נמוכות` : "בתוך הנורמה"}
+            change={
+              lowStockAlerts > 0
+                ? `${lowStockAlerts} פריטים בעלויות נמוכות`
+                : "בתוך הנורמה"
+            }
             color="from-red-400 via-orange-400 to-yellow-300"
           />
         )}
@@ -384,7 +412,10 @@ const Index = () => {
               <BarChart size={24} />
               <span className="text-xs whitespace-nowrap">סטטיסטיקות</span>
             </button>
-            <button onClick={() => setScannerOpen(true)} className="flex flex-col items-center gap-1 text-green-600 hover:text-green-800 flex-shrink-0">
+            <button
+              onClick={() => setScannerOpen(true)}
+              className="flex flex-col items-center gap-1 text-green-600 hover:text-green-800 flex-shrink-0"
+            >
               <ScanBarcode size={24} />
               <span className="text-xs whitespace-nowrap">סרוק</span>
             </button>
@@ -392,11 +423,17 @@ const Index = () => {
               <ClipboardList size={24} />
               <span className="text-xs whitespace-nowrap">הזמנות</span>
             </button>
-            <button className="flex flex-col items-center gap-1 text-gray-600 hover:text-gray-800 flex-shrink-0" onClick={() => setActivityLogOpen(true)}>
+            <button
+              className="flex flex-col items-center gap-1 text-gray-600 hover:text-gray-800 flex-shrink-0"
+              onClick={() => setActivityLogOpen(true)}
+            >
               <MoreHorizontal size={24} />
               <span className="text-xs whitespace-nowrap">פעולות</span>
             </button>
-            <button onClick={() => setRemoveScannerOpen(true)} className="flex flex-col items-center gap-1 text-red-600 hover:text-red-800 flex-shrink-0">
+            <button
+              onClick={() => setRemoveScannerOpen(true)}
+              className="flex flex-col items-center gap-1 text-red-600 hover:text-red-800 flex-shrink-0"
+            >
               <ArrowDownCircle size={24} />
               <span className="text-xs whitespace-nowrap">משיכה</span>
             </button>
@@ -417,7 +454,10 @@ const Index = () => {
             <BarChart size={24} />
             <span className="text-xs">סטטיסטיקות</span>
           </button>
-          <button onClick={() => setScannerOpen(true)} className="flex flex-col items-center gap-1 text-green-600 hover:text-green-800">
+          <button
+            onClick={() => setScannerOpen(true)}
+            className="flex flex-col items-center gap-1 text-green-600 hover:text-green-800"
+          >
             <ScanBarcode size={24} />
             <span className="text-xs">סרוק</span>
           </button>
@@ -425,11 +465,17 @@ const Index = () => {
             <ClipboardList size={24} />
             <span className="text-xs">הזמנות</span>
           </button>
-          <button className="flex flex-col items-center gap-1 text-gray-600 hover:text-gray-800" onClick={() => setActivityLogOpen(true)}>
+          <button
+            className="flex flex-col items-center gap-1 text-gray-600 hover:text-gray-800"
+            onClick={() => setActivityLogOpen(true)}
+          >
             <MoreHorizontal size={24} />
             <span className="text-xs">פעולות</span>
           </button>
-          <button onClick={() => setRemoveScannerOpen(true)} className="flex flex-col items-center gap-1 text-red-600 hover:text-red-800">
+          <button
+            onClick={() => setRemoveScannerOpen(true)}
+            className="flex flex-col items-center gap-1 text-red-600 hover:text-red-800"
+          >
             <ArrowDownCircle size={24} />
             <span className="text-xs">משיכה</span>
           </button>
@@ -479,14 +525,14 @@ const Index = () => {
             onAdd={(product) => {
               // Save new product to localStorage
               const products = JSON.parse(
-                localStorage.getItem("products") || "[]"
+                localStorage.getItem("products") || "[]",
               );
               products.push(product);
               localStorage.setItem("products", JSON.stringify(products));
-              
+
               // Add to barcode database if not already there
               const barcodeDb = JSON.parse(
-                localStorage.getItem("barcodeDatabase") || "{}"
+                localStorage.getItem("barcodeDatabase") || "{}",
               );
               if (!barcodeDb[product.barcode]) {
                 barcodeDb[product.barcode] = {
@@ -494,24 +540,29 @@ const Index = () => {
                   supplier: product.supplier,
                   minStock: product.minStock,
                 };
-                localStorage.setItem("barcodeDatabase", JSON.stringify(barcodeDb));
-                
+                localStorage.setItem(
+                  "barcodeDatabase",
+                  JSON.stringify(barcodeDb),
+                );
+
                 // Dispatch storage event for other components
-                window.dispatchEvent(new StorageEvent('storage', {
-                  key: 'barcodeDatabase',
-                  newValue: JSON.stringify(barcodeDb)
-                }));
+                window.dispatchEvent(
+                  new StorageEvent("storage", {
+                    key: "barcodeDatabase",
+                    newValue: JSON.stringify(barcodeDb),
+                  }),
+                );
               }
-              
+
               // Clear any temporary product data
-              localStorage.removeItem('tempProductData');
-              
+              localStorage.removeItem("tempProductData");
+
               addLogEntry({
                 type: "insert",
                 name: product.name,
                 barcode: product.barcode,
                 quantity: product.quantity,
-                date: Date.now()
+                date: Date.now(),
               });
               setAddDialogOpen(false);
               setScannedBarcode("");
@@ -521,7 +572,7 @@ const Index = () => {
             onOpenChange={(open) => {
               setAddDialogOpen(open);
               if (!open) {
-                localStorage.removeItem('tempProductData');
+                localStorage.removeItem("tempProductData");
               }
             }}
           />
@@ -531,7 +582,13 @@ const Index = () => {
             product={removeProduct}
             onRemove={(barcode, quantity) => {
               handleRemoveProduct(barcode, quantity);
-              addLogEntry({ type: "withdraw", name: removeProduct?.name, barcode, quantity, date: Date.now() });
+              addLogEntry({
+                type: "withdraw",
+                name: removeProduct?.name,
+                barcode,
+                quantity,
+                date: Date.now(),
+              });
               setRemoveDialogOpen(false);
               setRemoveBarcode("");
               setRemoveProduct(null);
@@ -549,7 +606,11 @@ const Index = () => {
           </div>
         </aside> */}
       </section>
-      <ActivityLogModal open={activityLogOpen} onOpenChange={setActivityLogOpen} log={activityLog} />
+      <ActivityLogModal
+        open={activityLogOpen}
+        onOpenChange={setActivityLogOpen}
+        log={activityLog}
+      />
     </main>
   );
 };
